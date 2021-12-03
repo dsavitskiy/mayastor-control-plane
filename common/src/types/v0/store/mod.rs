@@ -43,6 +43,29 @@ impl<T> From<SpecStatus<T>> for models::SpecStatus {
     }
 }
 
+impl<T> From<SpecStatus<T>> for i32 {
+    fn from(src: SpecStatus<T>) -> Self {
+        match src {
+            SpecStatus::Creating => 0,
+            SpecStatus::Created(_) => 1,
+            SpecStatus::Deleting => 2,
+            SpecStatus::Deleted => 3,
+        }
+    }
+}
+
+// impl<T> From<i32> for SpecStatus<T> {
+//     fn from(ind: i32) -> Self {
+//         match ind {
+//             0 => SpecStatus::Creating,
+//             1 => SpecStatus::Created(),
+//             2 => SpecStatus::Deleting,
+//             3 => SpecStatus::Deleted,
+//             _ => SpecStatus::Creating,
+//         }
+//     }
+// }
+
 impl<T: std::cmp::PartialEq> SpecStatus<T> {
     pub fn creating(&self) -> bool {
         self == &Self::Creating

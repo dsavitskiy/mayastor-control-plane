@@ -244,6 +244,8 @@ dependencies = [
  "ctrlp-tests",
  "dyn-clonable",
  "futures",
+ "git-version",
+ "grpc",
  "http",
  "humantime",
  "itertools",
@@ -1491,6 +1493,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "grpc"
+version = "0.1.0"
+dependencies = [
+ "common-lib",
+ "prost",
+ "prost-build",
+ "prost-types",
+ "tokio",
+ "tonic",
+ "tonic-build",
 ]
 
 [[package]]
@@ -2875,6 +2890,8 @@ dependencies = [
  "composer",
  "ctrlp-tests",
  "futures",
+ "git-version",
+ "grpc",
  "http",
  "humantime",
  "jsonwebtoken",

@@ -6,8 +6,8 @@ use common_lib::{
     mbus_api::{ReplyError, ReplyErrorKind, ResourceKind, TimeoutOptions},
     types::v0::{
         message_bus::{
-            GetNodes, GetSpecs, Protocol, Replica, ReplicaId, ReplicaName, ReplicaShareProtocol,
-            ReplicaStatus, VolumeId,
+            CreatePool, DestroyPool, GetNodes, GetPools, GetSpecs, Protocol, Replica, ReplicaId,
+            ReplicaName, ReplicaShareProtocol, ReplicaStatus, VolumeId,
         },
         openapi::{
             apis::StatusCode,
@@ -22,7 +22,7 @@ use std::{convert::TryFrom, time::Duration};
 use testlib::{Cluster, ClusterBuilder};
 
 #[tokio::test]
-async fn pool() {
+async fn pool1() {
     let cluster = ClusterBuilder::builder()
         .with_rest(false)
         .with_agents(vec!["core"])
@@ -43,6 +43,17 @@ async fn pool() {
     .await
     .unwrap();
 
+    // let client = PoolClient::init().await;
+    // let p = client
+    //     .create(
+    //         "pooloop".into(),
+    //         mayastor.clone().to_string(),
+    //         vec!["malloc:///disk0?size_mb=100".into()],
+    //         None,
+    //     )
+    //     .await
+    //     .unwrap();
+    // tracing::info!("Pools: {:?}", p);
     let pools = GetPools::default().request().await.unwrap();
     tracing::info!("Pools: {:?}", pools);
 

@@ -55,6 +55,17 @@ impl From<PoolStatus> for models::PoolStatus {
     }
 }
 
+impl From<PoolStatus> for i32 {
+    fn from(pool_status: PoolStatus) -> Self {
+        match pool_status {
+            PoolStatus::Unknown => 0,
+            PoolStatus::Online => 1,
+            PoolStatus::Degraded => 2,
+            PoolStatus::Faulted => 3,
+        }
+    }
+}
+
 /// Pool information
 #[derive(Serialize, Deserialize, Default, Debug, Clone, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -157,6 +168,14 @@ impl Pool {
             id: state.id.clone(),
             spec,
             state: Some(state),
+        }
+    }
+    /// Construct a new pool without and spec and state
+    pub fn from_none() -> Self {
+        Self {
+            id: "".into(),
+            spec: None,
+            state: None,
         }
     }
     /// Try to construct a new pool from spec and state

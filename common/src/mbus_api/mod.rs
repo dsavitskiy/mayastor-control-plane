@@ -328,6 +328,44 @@ pub enum ResourceKind {
     Watch,
 }
 
+impl From<ResourceKind> for i32 {
+    fn from(kind: ResourceKind) -> Self {
+        match kind {
+            ResourceKind::Unknown => 0,
+            ResourceKind::Node => 1,
+            ResourceKind::Pool => 2,
+            ResourceKind::Replica => 3,
+            ResourceKind::ReplicaState => 4,
+            ResourceKind::ReplicaSpec => 5,
+            ResourceKind::Nexus => 6,
+            ResourceKind::Child => 7,
+            ResourceKind::Volume => 8,
+            ResourceKind::JsonGrpc => 9,
+            ResourceKind::Block => 10,
+            ResourceKind::Watch => 11,
+        }
+    }
+}
+
+impl From<i32> for ResourceKind {
+    fn from(i: i32) -> Self {
+        match i {
+            1 => ResourceKind::Node,
+            2 => ResourceKind::Pool,
+            3 => ResourceKind::Replica,
+            4 => ResourceKind::ReplicaState,
+            5 => ResourceKind::ReplicaSpec,
+            6 => ResourceKind::Nexus,
+            7 => ResourceKind::Child,
+            8 => ResourceKind::Volume,
+            9 => ResourceKind::JsonGrpc,
+            10 => ResourceKind::Block,
+            11 => ResourceKind::Watch,
+            _ => ResourceKind::Unknown,
+        }
+    }
+}
+
 /// Error type which is returned over the bus
 /// for any other operation
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -400,6 +438,80 @@ pub enum ReplyErrorKind {
     ReplicaCreateNumber,
     VolumeNoReplicas,
     InUse,
+}
+
+impl From<ReplyErrorKind> for i32 {
+    fn from(kind: ReplyErrorKind) -> Self {
+        match kind {
+            ReplyErrorKind::WithMessage => 0,
+            ReplyErrorKind::DeserializeReq => 1,
+            ReplyErrorKind::Internal => 2,
+            ReplyErrorKind::Timeout => 3,
+            ReplyErrorKind::InvalidArgument => 4,
+            ReplyErrorKind::DeadlineExceeded => 5,
+            ReplyErrorKind::NotFound => 6,
+            ReplyErrorKind::AlreadyExists => 7,
+            ReplyErrorKind::PermissionDenied => 8,
+            ReplyErrorKind::ResourceExhausted => 9,
+            ReplyErrorKind::FailedPrecondition => 10,
+            ReplyErrorKind::Aborted => 11,
+            ReplyErrorKind::OutOfRange => 12,
+            ReplyErrorKind::Unimplemented => 13,
+            ReplyErrorKind::Unavailable => 14,
+            ReplyErrorKind::Unauthenticated => 15,
+            ReplyErrorKind::Unauthorized => 16,
+            ReplyErrorKind::Conflict => 17,
+            ReplyErrorKind::FailedPersist => 18,
+            ReplyErrorKind::NotShared => 19,
+            ReplyErrorKind::AlreadyShared => 20,
+            ReplyErrorKind::NotPublished => 21,
+            ReplyErrorKind::AlreadyPublished => 22,
+            ReplyErrorKind::Deleting => 23,
+            ReplyErrorKind::ReplicaCountAchieved => 24,
+            ReplyErrorKind::ReplicaChangeCount => 25,
+            ReplyErrorKind::ReplicaIncrease => 26,
+            ReplyErrorKind::ReplicaCreateNumber => 27,
+            ReplyErrorKind::VolumeNoReplicas => 28,
+            ReplyErrorKind::InUse => 29,
+        }
+    }
+}
+
+impl From<i32> for ReplyErrorKind {
+    fn from(i: i32) -> Self {
+        match i {
+            1 => ReplyErrorKind::DeserializeReq,
+            2 => ReplyErrorKind::Internal,
+            3 => ReplyErrorKind::Timeout,
+            4 => ReplyErrorKind::InvalidArgument,
+            5 => ReplyErrorKind::DeadlineExceeded,
+            6 => ReplyErrorKind::NotFound,
+            7 => ReplyErrorKind::AlreadyExists,
+            8 => ReplyErrorKind::PermissionDenied,
+            9 => ReplyErrorKind::ResourceExhausted,
+            10 => ReplyErrorKind::FailedPrecondition,
+            11 => ReplyErrorKind::Aborted,
+            12 => ReplyErrorKind::OutOfRange,
+            13 => ReplyErrorKind::Unimplemented,
+            14 => ReplyErrorKind::Unavailable,
+            15 => ReplyErrorKind::Unauthenticated,
+            16 => ReplyErrorKind::Unauthorized,
+            17 => ReplyErrorKind::Conflict,
+            18 => ReplyErrorKind::FailedPersist,
+            19 => ReplyErrorKind::NotShared,
+            20 => ReplyErrorKind::AlreadyShared,
+            21 => ReplyErrorKind::NotPublished,
+            22 => ReplyErrorKind::AlreadyPublished,
+            23 => ReplyErrorKind::Deleting,
+            24 => ReplyErrorKind::ReplicaCountAchieved,
+            25 => ReplyErrorKind::ReplicaChangeCount,
+            26 => ReplyErrorKind::ReplicaIncrease,
+            27 => ReplyErrorKind::ReplicaCreateNumber,
+            28 => ReplyErrorKind::VolumeNoReplicas,
+            29 => ReplyErrorKind::InUse,
+            _ => ReplyErrorKind::WithMessage,
+        }
+    }
 }
 
 impl From<Error> for ReplyError {

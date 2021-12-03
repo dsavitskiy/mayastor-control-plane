@@ -47,6 +47,17 @@ impl ResourceUuid for PoolState {
 /// Status of the Pool Spec
 pub type PoolSpecStatus = SpecStatus<message_bus::PoolStatus>;
 
+impl From<i32> for PoolSpecStatus {
+    fn from(i: i32) -> Self {
+        match i {
+            1 => PoolSpecStatus::Created(Default::default()),
+            2 => PoolSpecStatus::Deleting,
+            3 => PoolSpecStatus::Deleted,
+            _ => PoolSpecStatus::Creating,
+        }
+    }
+}
+
 impl From<&CreatePool> for PoolSpec {
     fn from(request: &CreatePool) -> Self {
         Self {

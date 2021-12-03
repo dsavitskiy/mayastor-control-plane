@@ -1,7 +1,10 @@
 use crate::core::{registry::Registry, specs::ResourceSpecsLocked, wrapper::GetterOps};
 use common::errors::{PoolNotFound, ReplicaNotFound, SvcError};
 use common_lib::{
-    mbus_api::message_bus::v0::{Pools, Replicas},
+    mbus_api::{
+        message_bus::v0::{Pools, Replicas},
+        ReplyError,
+    },
     types::v0::{
         message_bus::{
             CreatePool, CreateReplica, DestroyPool, DestroyReplica, Filter, GetPools, GetReplicas,
@@ -10,11 +13,48 @@ use common_lib::{
         store::OperationMode,
     },
 };
+use grpc::pool::traits::PoolOperations;
 use snafu::OptionExt;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub(super) struct Service {
     registry: Registry,
+}
+
+#[tonic::async_trait]
+impl PoolOperations for Service {
+    async fn create(
+        &self,
+        id: String,
+        node: String,
+        disks: Vec<String>,
+        labels: Option<HashMap<String, String>>,
+    ) -> Result<Pool, ReplyError> {
+        let req = CreatePool {
+            node: node.into(),
+            id: id.into(),
+            disks: disks.iter().map(|i| i.into()).collect(),
+            labels,
+        };
+        let pool = self.create_pool(&req).await?;
+        Ok(pool)
+    }
+
+    async fn destroy(&self, node_id: String, pool_id: String) -> Result<(), ReplyError> {
+        let req = DestroyPool {
+            node: node_id.into(),
+            id: pool_id.into(),
+        };
+        self.destroy_pool(&req).await?;
+        Ok(())
+    }
+
+    async fn get(&self, filter: Filter) -> Result<Pools, ReplyError> {
+        let req = GetPools { filter };
+        let pools = self.get_pools(&req).await?;
+        Ok(pools)
+    }
 }
 
 impl Service {
