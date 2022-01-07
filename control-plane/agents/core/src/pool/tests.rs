@@ -6,8 +6,9 @@ use common_lib::{
     mbus_api::{ReplyError, ReplyErrorKind, ResourceKind, TimeoutOptions},
     types::v0::{
         message_bus::{
-            CreatePool, DestroyPool, GetNodes, GetPools, GetSpecs, Protocol, Replica, ReplicaId,
-            ReplicaName, ReplicaShareProtocol, ReplicaStatus, VolumeId,
+            CreatePool, CreateReplica, DestroyPool, DestroyReplica, GetNodes, GetPools,
+            GetReplicas, GetSpecs, Protocol, Replica, ReplicaId, ReplicaName, ReplicaShareProtocol,
+            ReplicaStatus, ShareReplica, UnshareReplica, VolumeId,
         },
         openapi::{
             apis::StatusCode,

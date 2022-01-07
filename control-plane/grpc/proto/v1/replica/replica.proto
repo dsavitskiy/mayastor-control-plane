@@ -1,0 +1,149 @@
+syntax = "proto3";
+
+import "v1/misc/common.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+
+package v1.replica;
+
+message Replica{
+  string node_id = 1;
+  string name = 2;
+  google.protobuf.StringValue replica_id = 3;
+  string pool_id = 4;
+  bool thin = 5;
+  uint64 size = 6;
+  Protocol share = 7;
+  string uri = 8;
+  ReplicaStatus status = 9;
+}
+
+message Replicas {
+  repeated Replica replicas = 1;
+}
+
+enum ReplicaStatus {
+  Unknown = 0;
+  Online = 1;
+  Degraded = 2;
+  Faulted = 3;
+}
+
+enum Protocol {
+  None = 0;
+  Nvmf = 1;
+  Iscsi = 2;
+  Nbd = 3;
+}
+
+message CreateReplicaRequest{
+  string node_id = 1;
+  optional string name = 2;
+  google.protobuf.StringValue replica_id = 3;
+  string pool_id = 4;
+  bool thin = 5;
+  uint64 size = 6;
+  Protocol share = 7;
+  bool managed = 8;
+  ReplicaOwners owners = 9;
+}
+
+message ReplicaOwners {
+  optional google.protobuf.StringValue volume = 1;
+  repeated google.protobuf.StringValue nexuses = 2;
+}
+
+message DestroyReplicaRequest{
+  string node_id = 1;
+  optional string name = 2;
+  google.protobuf.StringValue replica_id = 3;
+  string pool_id = 4;
+  ReplicaOwners owners = 5;
+}
+
+message ShareReplicaRequest {
+  string node_id = 1;
+  optional string name = 2;
+  google.protobuf.StringValue replica_id = 3;
+  string pool_id = 4;
+  ReplicaShareProtocol protocol = 5;
+}
+
+enum ReplicaShareProtocol{
+  Nvmf_ = 0;
+}
+
+message UnshareReplicaRequest {
+  string node_id = 1;
+  optional string name = 2;
+  google.protobuf.StringValue replica_id = 3;
+  string pool_id = 4;
+}
+
+message AddNexusReplica {
+  string node_id = 1;
+  google.protobuf.StringValue nexus_id = 2;
+  google.protobuf.StringValue replica_id = 3;
+  bool auto_rebuild = 4;
+}
+
+message RemoveNexusReplica {
+  string node_id = 1;
+  google.protobuf.StringValue nexus_id = 2;
+  ReplicaUri replica = 3;
+}
+
+message ReplicaUri {
+  google.protobuf.StringValue replica_id = 1;
+  string share_uri = 2;
+}
+
+message CreateReplicaReply {
+  oneof reply {
+    Replica replica = 1;
+    common.ReplyError error = 2;
+  }
+}
+
+message GetReplicasReply {
+  oneof reply {
+    Replicas replicas = 1;
+    common.ReplyError error = 2;
+  }
+}
+
+message DestroyReplicaReply {
+  optional common.ReplyError error = 1;
+}
+
+message ShareReplicaReply {
+  oneof reply {
+    string response = 1;
+    common.ReplyError error = 2;
+  }
+}
+
+message UnshareReplicaReply {
+  optional common.ReplyError error = 1;
+}
+
+message GetReplicasRequest {
+  oneof filter {
+    common.NodeFilter node = 1;
+    common.NodePoolFilter node_pool = 2;
+    common.PoolFilter pool = 3;
+    common.NodePoolReplicaFilter node_pool_replica = 4;
+    common.NodeReplicaFilter node_replica = 5;
+    common.PoolReplicaFilter pool_replica = 6;
+    common.ReplicaFilter replica = 7;
+    common.VolumeFilter volume = 8;
+  }
+}
+
+service ReplicaGrpc {
+  rpc CreateReplica (CreateReplicaRequest) returns (CreateReplicaReply) {}
+  rpc DestroyReplica (DestroyReplicaRequest) returns (DestroyReplicaReply) {}
+  rpc GetReplicas (GetReplicasRequest) returns (GetReplicasReply) {}
+  rpc ShareReplica (ShareReplicaRequest) returns (ShareReplicaReply) {}
+  rpc UnshareReplica (UnshareReplicaRequest) returns (UnshareReplicaReply) {}
+}

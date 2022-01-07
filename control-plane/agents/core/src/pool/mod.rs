@@ -2,31 +2,25 @@ mod registry;
 pub mod service;
 pub mod specs;
 
-use std::{convert::TryInto, marker::PhantomData, sync::Arc};
+use std::sync::Arc;
 
-use super::{core::registry::Registry, handler, impl_request_handler};
-use async_trait::async_trait;
-use common::{errors::SvcError, handler::*, Service};
+use super::core::registry::Registry;
 
-// Replica Operations
-use common_lib::types::v0::message_bus::{
-    CreateReplica, DestroyReplica, GetReplicas, ShareReplica, UnshareReplica,
-};
+use common::{handler::*, Service};
 
 pub(crate) async fn configure(builder: Service) -> Service {
     let registry = builder.get_shared_state::<Registry>().clone();
-    let new_service = service::Service::new(registry);
+    let new_service = service::Service::new(registry.clone());
     builder
         .with_channel(ChannelVs::Pool)
         .with_default_liveness()
         .with_shared_state(new_service.clone())
-        .with_pool_transport(Arc::new(new_service))
+        .with_transport(Arc::new(new_service.clone()), Arc::new(new_service.clone()))
         .await
-        .with_subscription(handler!(GetReplicas))
-        .with_subscription(handler!(CreateReplica))
-        .with_subscription(handler!(DestroyReplica))
-        .with_subscription(handler!(ShareReplica))
-        .with_subscription(handler!(UnshareReplica))
+    // .with_subscription(handler!(GetReplicas))
+    // .with_subscription(handler!(DestroyReplica))
+    // .with_subscription(handler!(ShareReplica))
+    // .with_subscription(handler!(UnshareReplica))
 }
 
 /// Pool Agent's Tests

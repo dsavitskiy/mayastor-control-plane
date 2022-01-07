@@ -300,6 +300,17 @@ impl From<i32> for Protocol {
     }
 }
 
+impl From<Protocol> for i32 {
+    fn from(src: Protocol) -> Self {
+        match src {
+            Protocol::Nvmf => 1,
+            Protocol::Iscsi => 2,
+            Protocol::Nbd => 3,
+            _ => 0,
+        }
+    }
+}
+
 /// Convert a device URI to a share Protocol
 /// Uses the URI scheme to determine the protocol
 /// Temporary WA until the share is added to the mayastor RPC

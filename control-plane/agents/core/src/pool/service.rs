@@ -13,7 +13,7 @@ use common_lib::{
         store::OperationMode,
     },
 };
-use grpc::pool::traits::PoolOperations;
+use grpc::{pool::traits::PoolOperations, replica::traits::ReplicaOperations};
 use snafu::OptionExt;
 use std::collections::HashMap;
 
@@ -54,6 +54,35 @@ impl PoolOperations for Service {
         let req = GetPools { filter };
         let pools = self.get_pools(&req).await?;
         Ok(pools)
+    }
+}
+
+#[tonic::async_trait]
+impl ReplicaOperations for Service {
+    async fn create(&self, req: CreateReplica) -> Result<Replica, ReplyError> {
+        let replica = self.create_replica(&req).await?;
+        Ok(replica)
+    }
+
+    async fn get(&self, filter: Filter) -> Result<Replicas, ReplyError> {
+        let req = GetReplicas { filter };
+        let replicas = self.get_replicas(&req).await?;
+        Ok(replicas)
+    }
+
+    async fn destroy(&self, req: DestroyReplica) -> Result<(), ReplyError> {
+        self.destroy_replica(&req).await?;
+        Ok(())
+    }
+
+    async fn share(&self, req: ShareReplica) -> Result<String, ReplyError> {
+        let response = self.share_replica(&req).await?;
+        Ok(response)
+    }
+
+    async fn unshare(&self, req: UnshareReplica) -> Result<(), ReplyError> {
+        self.unshare_replica(&req).await?;
+        Ok(())
     }
 }
 

@@ -77,28 +77,12 @@ enum PoolStatus {
   Faulted = 3;
 }
 
-// Filter by Node id
-message NodeFilter{
-  string node_id = 1;
-}
-
-// Filter by Pool id
-message PoolFilter{
-  string pool_id = 1;
-}
-
-// Filter by Node and Pool id
-message NodePoolFilter{
-  string node_id = 1;
-  string pool_id = 2;
-}
-
 // Get all pools based on the filter criteria
 message GetPoolsRequest {
   oneof filter {
-    NodeFilter node = 1;
-    PoolFilter pool = 2;
-    NodePoolFilter node_pool = 3;
+    common.NodeFilter node = 1;
+    common.PoolFilter pool = 2;
+    common.NodePoolFilter node_pool = 3;
   }
 }
 
@@ -143,7 +127,6 @@ message GetPoolsReply {
   }
 }
 
-// Service for managing storage pools
 service PoolGrpc {
   rpc CreatePool (CreatePoolRequest) returns (CreatePoolReply) {}
   rpc DestroyPool (DestroyPoolRequest) returns (DestroyPoolReply) {}

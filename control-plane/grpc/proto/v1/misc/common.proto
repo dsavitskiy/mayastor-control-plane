@@ -84,3 +84,48 @@ enum ResourceKind {
   // Watch
   Watch = 11;
 }
+
+// Filter by Node and Replica id
+message NodeReplicaFilter{
+  string node_id = 1;
+  string replica_id = 2;
+}
+
+// Filter by Node and Replica id
+message NodePoolReplicaFilter{
+  string node_id = 1;
+  string pool_id = 2;
+  string replica_id = 3;
+}
+
+// Filter by Node and Replica id
+message PoolReplicaFilter{
+  string pool_id = 1;
+  string replica_id = 2;
+}
+
+// Filter by Node and Replica id
+message ReplicaFilter{
+  string replica_id = 1;
+}
+
+//TODO: Move this to volume proto
+message VolumeFilter{
+  string volume_id = 1;
+}
+
+// Filter by Node id
+message NodeFilter{
+  string node_id = 1;
+}
+
+// Filter by Pool id
+message PoolFilter{
+  string pool_id = 1;
+}
+
+// Filter by Node and Pool id
+message NodePoolFilter{
+  string node_id = 1;
+  string pool_id = 2;
+}
