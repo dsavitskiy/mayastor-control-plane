@@ -306,8 +306,9 @@ impl Service {
         self,
         pool_service: Arc<T>,
         replica_service: Arc<P>,
+        addr: String,
     ) -> Self {
-        grpc::server::CoreServer::init(pool_service, replica_service).await;
+        grpc::server::CoreServer::init(pool_service, replica_service, addr).await;
         self
     }
 

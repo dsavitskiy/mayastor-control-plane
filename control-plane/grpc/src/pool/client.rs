@@ -1,20 +1,18 @@
 use crate::{
     common::{NodeFilter, NodePoolFilter, PoolFilter},
+    get_core_ip,
     pool::traits::PoolOperations,
     pool_grpc::{
         create_pool_reply, get_pools_reply, get_pools_request, pool_grpc_client::PoolGrpcClient,
         CreatePoolRequest, DestroyPoolRequest, GetPoolsRequest,
     },
 };
-use std::collections::HashMap;
 
+use crate::pool::traits::{CreatePoolInfo, DestroyPoolInfo};
 use common_lib::{
     mbus_api::{v0::Pools, ReplyError},
     types::v0::message_bus::{Filter, Pool},
 };
-
-const GRPC_SERVER: &str = "10.1.0.4:50051";
-const HTTPS_SCHEME: &str = "https://";
 
 // RPC Pool Client
 pub struct PoolClient {
@@ -22,10 +20,12 @@ pub struct PoolClient {
 }
 
 impl PoolClient {
-    pub async fn init() -> impl PoolOperations {
-        let client = PoolGrpcClient::connect(HTTPS_SCHEME.to_owned() + GRPC_SERVER)
-            .await
-            .unwrap();
+    pub async fn init(addr: String) -> impl PoolOperations {
+        let a = match addr.is_empty() {
+            true => get_core_ip(),
+            false => addr,
+        };
+        let client = PoolGrpcClient::connect(a).await.unwrap();
         Self { client }
     }
 }
@@ -36,19 +36,9 @@ impl PoolClient {
 impl PoolOperations for PoolClient {
     async fn create(
         &self,
-        id: String,
-        node: String,
-        disks: Vec<String>,
-        labels: Option<HashMap<String, String>>,
+        create_pool_req: &(dyn CreatePoolInfo + Sync + Send),
     ) -> Result<Pool, ReplyError> {
-        let req = CreatePoolRequest {
-            pool_id: id,
-            node_id: node,
-            disks,
-            labels: Some(crate::common::StringMapValue {
-                value: labels.unwrap_or_default(),
-            }),
-        };
+        let req: CreatePoolRequest = create_pool_req.into();
         let response = self
             .client
             .clone()
@@ -63,8 +53,11 @@ impl PoolOperations for PoolClient {
     }
 
     /// Issue the pool destroy operation over RPC.
-    async fn destroy(&self, node_id: String, pool_id: String) -> Result<(), ReplyError> {
-        let req = DestroyPoolRequest { pool_id, node_id };
+    async fn destroy(
+        &self,
+        destroy_pool_req: &(dyn DestroyPoolInfo + Sync + Send),
+    ) -> Result<(), ReplyError> {
+        let req: DestroyPoolRequest = destroy_pool_req.into();
         let response = self
             .client
             .clone()

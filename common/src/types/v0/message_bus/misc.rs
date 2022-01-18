@@ -337,6 +337,19 @@ impl TryFrom<&str> for Protocol {
     }
 }
 
+impl TryFrom<String> for Protocol {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        match value.as_str() {
+            "nvmf" => Ok(Self::Nvmf),
+            "iscsi" => Ok(Self::Iscsi),
+            "nbd" => Ok(Self::Nbd),
+            _ => Ok(Self::None),
+        }
+    }
+}
+
 impl From<Protocol> for models::Protocol {
     fn from(src: Protocol) -> Self {
         match src {

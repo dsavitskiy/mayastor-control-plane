@@ -8,14 +8,21 @@ use common_lib::{
     types::v0::{
         message_bus::{
             CreatePool, CreateReplica, DestroyPool, DestroyReplica, Filter, GetPools, GetReplicas,
-            NodeId, Pool, PoolId, Replica, ShareReplica, UnshareReplica,
+            NexusId, NodeId, Pool, PoolId, Protocol, Replica, ReplicaId, ReplicaOwners,
+            ReplicaShareProtocol, ShareReplica, UnshareReplica, VolumeId,
         },
         store::OperationMode,
     },
 };
-use grpc::{pool::traits::PoolOperations, replica::traits::ReplicaOperations};
+use grpc::{
+    pool::traits::{CreatePoolInfo, DestroyPoolInfo, PoolOperations},
+    replica::traits::{
+        CreateReplicaInfo, DestroyReplicaInfo, ReplicaOperations, ShareReplicaInfo,
+        UnshareReplicaInfo,
+    },
+};
 use snafu::OptionExt;
-use std::collections::HashMap;
+use std::{convert::TryFrom, str::FromStr};
 
 #[derive(Debug, Clone)]
 pub(super) struct Service {
@@ -24,27 +31,21 @@ pub(super) struct Service {
 
 #[tonic::async_trait]
 impl PoolOperations for Service {
-    async fn create(
-        &self,
-        id: String,
-        node: String,
-        disks: Vec<String>,
-        labels: Option<HashMap<String, String>>,
-    ) -> Result<Pool, ReplyError> {
+    async fn create(&self, pool: &(dyn CreatePoolInfo + Sync + Send)) -> Result<Pool, ReplyError> {
         let req = CreatePool {
-            node: node.into(),
-            id: id.into(),
-            disks: disks.iter().map(|i| i.into()).collect(),
-            labels,
+            node: pool.node_id().into(),
+            id: pool.pool_id().into(),
+            disks: pool.disks().unwrap().iter().map(|i| i.into()).collect(),
+            labels: pool.labels(),
         };
         let pool = self.create_pool(&req).await?;
         Ok(pool)
     }
 
-    async fn destroy(&self, node_id: String, pool_id: String) -> Result<(), ReplyError> {
+    async fn destroy(&self, pool: &(dyn DestroyPoolInfo + Sync + Send)) -> Result<(), ReplyError> {
         let req = DestroyPool {
-            node: node_id.into(),
-            id: pool_id.into(),
+            node: pool.node_id().into(),
+            id: pool.pool_id().into(),
         };
         self.destroy_pool(&req).await?;
         Ok(())
@@ -59,8 +60,32 @@ impl PoolOperations for Service {
 
 #[tonic::async_trait]
 impl ReplicaOperations for Service {
-    async fn create(&self, req: CreateReplica) -> Result<Replica, ReplyError> {
-        let replica = self.create_replica(&req).await?;
+    async fn create(
+        &self,
+        req: &(dyn CreateReplicaInfo + Sync + Send),
+    ) -> Result<Replica, ReplyError> {
+        let create_replica = CreateReplica {
+            node: req.node().into(),
+            name: req.name().map(|name| name.into()),
+            uuid: ReplicaId::try_from(req.uuid()).unwrap(),
+            pool: req.pool().into(),
+            size: req.size(),
+            thin: req.thin(),
+            share: Protocol::from_str(req.share().as_str()).unwrap(),
+            managed: req.managed(),
+            owners: ReplicaOwners::new(
+                req.owners()
+                    .volume()
+                    .map(|id| VolumeId::try_from(id).unwrap()),
+                req.owners()
+                    .nexuses()
+                    .clone()
+                    .iter()
+                    .map(|f| NexusId::try_from(f).unwrap())
+                    .collect(),
+            ),
+        };
+        let replica = self.create_replica(&create_replica).await?;
         Ok(replica)
     }
 
@@ -70,18 +95,57 @@ impl ReplicaOperations for Service {
         Ok(replicas)
     }
 
-    async fn destroy(&self, req: DestroyReplica) -> Result<(), ReplyError> {
-        self.destroy_replica(&req).await?;
+    async fn destroy(
+        &self,
+        req: &(dyn DestroyReplicaInfo + Sync + Send),
+    ) -> Result<(), ReplyError> {
+        let destroy_replica = DestroyReplica {
+            node: req.node().into(),
+            pool: req.pool().into(),
+            uuid: ReplicaId::try_from(req.uuid()).unwrap(),
+            name: req.name().map(|name| name.into()),
+            disowners: ReplicaOwners::new(
+                req.disowners()
+                    .volume()
+                    .map(|id| VolumeId::try_from(id).unwrap()),
+                req.disowners()
+                    .nexuses()
+                    .clone()
+                    .iter()
+                    .map(|f| NexusId::try_from(f).unwrap())
+                    .collect(),
+            ),
+        };
+        self.destroy_replica(&destroy_replica).await?;
         Ok(())
     }
 
-    async fn share(&self, req: ShareReplica) -> Result<String, ReplyError> {
-        let response = self.share_replica(&req).await?;
+    async fn share(
+        &self,
+        req: &(dyn ShareReplicaInfo + Sync + Send),
+    ) -> Result<String, ReplyError> {
+        let share_replica = ShareReplica {
+            node: req.node().into(),
+            pool: req.pool().into(),
+            uuid: ReplicaId::try_from(req.uuid()).unwrap(),
+            name: req.name().map(|name| name.into()),
+            protocol: ReplicaShareProtocol::try_from(req.protocol().as_str()).unwrap(),
+        };
+        let response = self.share_replica(&share_replica).await?;
         Ok(response)
     }
 
-    async fn unshare(&self, req: UnshareReplica) -> Result<(), ReplyError> {
-        self.unshare_replica(&req).await?;
+    async fn unshare(
+        &self,
+        req: &(dyn UnshareReplicaInfo + Sync + Send),
+    ) -> Result<(), ReplyError> {
+        let unshare_replica = UnshareReplica {
+            node: req.node().into(),
+            pool: req.pool().into(),
+            uuid: ReplicaId::try_from(req.uuid()).unwrap(),
+            name: req.name().map(|name| name.into()),
+        };
+        self.unshare_replica(&unshare_replica).await?;
         Ok(())
     }
 }

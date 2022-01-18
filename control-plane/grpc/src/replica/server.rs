@@ -37,7 +37,7 @@ impl ReplicaGrpc for ReplicaServer {
         request: tonic::Request<CreateReplicaRequest>,
     ) -> Result<tonic::Response<CreateReplicaReply>, tonic::Status> {
         let req = request.into_inner();
-        match self.service.create(req.into()).await {
+        match self.service.create(&req).await {
             Ok(replica) => Ok(Response::new(CreateReplicaReply {
                 reply: Some(create_replica_reply::Reply::Replica(replica.into())),
             })),
@@ -51,7 +51,7 @@ impl ReplicaGrpc for ReplicaServer {
         request: tonic::Request<DestroyReplicaRequest>,
     ) -> Result<tonic::Response<DestroyReplicaReply>, tonic::Status> {
         let req = request.into_inner();
-        match self.service.destroy(req.into()).await {
+        match self.service.destroy(&req).await {
             Ok(()) => Ok(Response::new(DestroyReplicaReply { error: None })),
             Err(e) => Ok(Response::new(DestroyReplicaReply {
                 error: Some(e.into()),
@@ -82,7 +82,7 @@ impl ReplicaGrpc for ReplicaServer {
         request: tonic::Request<ShareReplicaRequest>,
     ) -> Result<tonic::Response<ShareReplicaReply>, tonic::Status> {
         let req = request.into_inner();
-        match self.service.share(req.into()).await {
+        match self.service.share(&req).await {
             Ok(message) => Ok(Response::new(ShareReplicaReply {
                 reply: Some(share_replica_reply::Reply::Response(message)),
             })),
@@ -96,7 +96,7 @@ impl ReplicaGrpc for ReplicaServer {
         request: tonic::Request<UnshareReplicaRequest>,
     ) -> Result<tonic::Response<UnshareReplicaReply>, tonic::Status> {
         let req = request.into_inner();
-        match self.service.unshare(req.into()).await {
+        match self.service.unshare(&req).await {
             Ok(()) => Ok(Response::new(UnshareReplicaReply { error: None })),
             Err(e) => Ok(Response::new(UnshareReplicaReply {
                 error: Some(e.into()),

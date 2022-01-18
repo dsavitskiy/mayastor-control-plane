@@ -393,6 +393,17 @@ impl From<ReplicaShareProtocol> for Protocol {
     }
 }
 
+impl TryFrom<&str> for ReplicaShareProtocol {
+    type Error = String;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Ok(match value {
+            "nvmf" => Self::Nvmf,
+            _ => panic!("Invalid replica share protocol {}", value),
+        })
+    }
+}
+
 /// State of the Replica
 #[derive(Serialize, Deserialize, Debug, Clone, EnumString, ToString, Eq, PartialEq)]
 #[strum(serialize_all = "camelCase")]

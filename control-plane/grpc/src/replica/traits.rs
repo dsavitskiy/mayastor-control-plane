@@ -8,73 +8,25 @@ use crate::{
 use common_lib::{
     mbus_api::{v0::Replicas, ReplyError},
     types::v0::message_bus::{
-        CreateReplica, DestroyReplica, Filter, NexusId, Replica, ReplicaId, ReplicaOwners,
-        ReplicaStatus, ShareReplica, UnshareReplica, VolumeId,
+        CreateReplica, DestroyReplica, Filter, NexusId, Protocol, Replica, ReplicaId,
+        ReplicaOwners, ReplicaShareProtocol, ReplicaStatus, ShareReplica, UnshareReplica, VolumeId,
     },
 };
 use std::convert::TryFrom;
 
 #[tonic::async_trait]
 pub trait ReplicaOperations {
-    async fn create(&self, req: CreateReplica) -> Result<Replica, ReplyError>;
+    async fn create(
+        &self,
+        req: &(dyn CreateReplicaInfo + Sync + Send),
+    ) -> Result<Replica, ReplyError>;
     async fn get(&self, filter: Filter) -> Result<Replicas, ReplyError>;
-    async fn destroy(&self, req: DestroyReplica) -> Result<(), ReplyError>;
-    async fn share(&self, req: ShareReplica) -> Result<String, ReplyError>;
-    async fn unshare(&self, req: UnshareReplica) -> Result<(), ReplyError>;
-}
-
-impl From<CreateReplica> for CreateReplicaRequest {
-    fn from(req: CreateReplica) -> Self {
-        let name = req.name.map(|name| name.to_string());
-        let volume = req.owners.volume().map(|id| id.to_string());
-        let replica_owners = replica_grpc::ReplicaOwners {
-            volume,
-            nexuses: req.owners.nexuses().iter().map(|i| i.to_string()).collect(),
-        };
-        CreateReplicaRequest {
-            node_id: req.node.into(),
-            name,
-            replica_id: Some(req.uuid.into()),
-            pool_id: req.pool.into(),
-            thin: req.thin,
-            size: req.size,
-            share: req.share.into(),
-            managed: req.managed,
-            owners: Some(replica_owners),
-        }
-    }
-}
-
-impl From<CreateReplicaRequest> for CreateReplica {
-    fn from(req: CreateReplicaRequest) -> Self {
-        let name = req.name.map(|name| name.into());
-        let volume = req
-            .owners
-            .clone()
-            .unwrap()
-            .volume
-            .map(|id| VolumeId::try_from(id).unwrap());
-        let replica_owners = ReplicaOwners::new(
-            volume,
-            req.owners
-                .unwrap()
-                .nexuses
-                .into_iter()
-                .map(|i| NexusId::try_from(i).unwrap())
-                .collect(),
-        );
-        CreateReplica {
-            node: req.node_id.into(),
-            name,
-            uuid: ReplicaId::try_from(req.replica_id.unwrap()).unwrap(),
-            pool: req.pool_id.into(),
-            size: req.size,
-            thin: req.thin,
-            share: req.share.into(),
-            managed: req.managed,
-            owners: replica_owners,
-        }
-    }
+    async fn destroy(&self, req: &(dyn DestroyReplicaInfo + Sync + Send))
+        -> Result<(), ReplyError>;
+    async fn share(&self, req: &(dyn ShareReplicaInfo + Sync + Send))
+        -> Result<String, ReplyError>;
+    async fn unshare(&self, req: &(dyn UnshareReplicaInfo + Sync + Send))
+        -> Result<(), ReplyError>;
 }
 
 impl From<Replica> for replica_grpc::Replica {
@@ -116,107 +68,6 @@ impl From<replica_grpc::ReplicaStatus> for ReplicaStatus {
             replica_grpc::ReplicaStatus::Online => ReplicaStatus::Online,
             replica_grpc::ReplicaStatus::Degraded => ReplicaStatus::Degraded,
             replica_grpc::ReplicaStatus::Faulted => ReplicaStatus::Faulted,
-        }
-    }
-}
-
-impl From<DestroyReplica> for DestroyReplicaRequest {
-    fn from(req: DestroyReplica) -> Self {
-        let name = req.name.map(|name| name.to_string());
-        let volume = req.disowners.volume().map(|id| id.to_string());
-        let replica_disowners = replica_grpc::ReplicaOwners {
-            volume,
-            nexuses: req
-                .disowners
-                .nexuses()
-                .iter()
-                .map(|i| i.to_string())
-                .collect(),
-        };
-        DestroyReplicaRequest {
-            node_id: req.node.into(),
-            name,
-            replica_id: Some(req.uuid.into()),
-            pool_id: req.pool.into(),
-            owners: Some(replica_disowners),
-        }
-    }
-}
-
-impl From<DestroyReplicaRequest> for DestroyReplica {
-    fn from(req: DestroyReplicaRequest) -> Self {
-        let name = req.name.map(|name| name.into());
-        let volume = req
-            .owners
-            .clone()
-            .unwrap()
-            .volume
-            .map(|id| VolumeId::try_from(id).unwrap());
-        let replica_disowners = ReplicaOwners::new(
-            volume,
-            req.owners
-                .unwrap()
-                .nexuses
-                .into_iter()
-                .map(|i| NexusId::try_from(i).unwrap())
-                .collect(),
-        );
-        DestroyReplica {
-            node: req.node_id.into(),
-            name,
-            uuid: ReplicaId::try_from(req.replica_id.unwrap()).unwrap(),
-            pool: req.pool_id.into(),
-            disowners: replica_disowners,
-        }
-    }
-}
-
-impl From<ShareReplica> for ShareReplicaRequest {
-    fn from(req: ShareReplica) -> Self {
-        let name = req.name.map(|name| name.to_string());
-        ShareReplicaRequest {
-            node_id: req.node.into(),
-            name,
-            replica_id: Some(req.uuid.into()),
-            pool_id: req.pool.into(),
-            protocol: req.protocol.into(),
-        }
-    }
-}
-
-impl From<ShareReplicaRequest> for ShareReplica {
-    fn from(req: ShareReplicaRequest) -> Self {
-        let name = req.name.map(|name| name.into());
-        ShareReplica {
-            node: req.node_id.into(),
-            name,
-            uuid: ReplicaId::try_from(req.replica_id.unwrap()).unwrap(),
-            pool: req.pool_id.into(),
-            protocol: req.protocol.into(),
-        }
-    }
-}
-
-impl From<UnshareReplica> for UnshareReplicaRequest {
-    fn from(req: UnshareReplica) -> Self {
-        let name = req.name.map(|name| name.to_string());
-        UnshareReplicaRequest {
-            node_id: req.node.into(),
-            name,
-            replica_id: Some(req.uuid.into()),
-            pool_id: req.pool.into(),
-        }
-    }
-}
-
-impl From<UnshareReplicaRequest> for UnshareReplica {
-    fn from(req: UnshareReplicaRequest) -> Self {
-        let name = req.name.map(|name| name.into());
-        UnshareReplica {
-            node: req.node_id.into(),
-            name,
-            uuid: ReplicaId::try_from(req.replica_id.unwrap()).unwrap(),
-            pool: req.pool_id.into(),
         }
     }
 }
@@ -279,6 +130,325 @@ impl From<Replicas> for replica_grpc::Replicas {
                 .iter()
                 .map(|replicas| replicas.clone().into())
                 .collect(),
+        }
+    }
+}
+
+pub trait CreateReplicaInfo {
+    fn node(&self) -> String;
+    fn name(&self) -> Option<String>;
+    fn uuid(&self) -> String;
+    fn pool(&self) -> String;
+    fn size(&self) -> u64;
+    fn thin(&self) -> bool;
+    fn share(&self) -> String;
+    fn managed(&self) -> bool;
+    fn owners(&self) -> ReplicaOwners;
+}
+
+impl CreateReplicaInfo for CreateReplica {
+    fn node(&self) -> String {
+        self.node.to_string()
+    }
+
+    fn name(&self) -> Option<String> {
+        self.name.clone().map(|name| name.to_string())
+    }
+
+    fn uuid(&self) -> String {
+        self.uuid.to_string()
+    }
+
+    fn pool(&self) -> String {
+        self.pool.to_string()
+    }
+
+    fn size(&self) -> u64 {
+        self.size
+    }
+
+    fn thin(&self) -> bool {
+        self.thin
+    }
+
+    fn share(&self) -> String {
+        self.share.to_string()
+    }
+
+    fn managed(&self) -> bool {
+        self.managed
+    }
+
+    fn owners(&self) -> ReplicaOwners {
+        self.owners.clone()
+    }
+}
+
+impl CreateReplicaInfo for CreateReplicaRequest {
+    fn node(&self) -> String {
+        self.node_id.clone()
+    }
+
+    fn name(&self) -> Option<String> {
+        self.name.clone()
+    }
+
+    fn uuid(&self) -> String {
+        self.replica_id.clone().unwrap()
+    }
+
+    fn pool(&self) -> String {
+        self.pool_id.clone()
+    }
+
+    fn size(&self) -> u64 {
+        self.size
+    }
+
+    fn thin(&self) -> bool {
+        self.thin
+    }
+
+    fn share(&self) -> String {
+        let protocol: Protocol = self.share.into();
+        protocol.to_string()
+    }
+
+    fn managed(&self) -> bool {
+        self.managed
+    }
+
+    fn owners(&self) -> ReplicaOwners {
+        ReplicaOwners::new(
+            self.owners
+                .clone()
+                .unwrap()
+                .volume
+                .map(|id| VolumeId::try_from(id).unwrap()),
+            self.owners
+                .clone()
+                .unwrap()
+                .nexuses
+                .iter()
+                .map(|id| NexusId::try_from(id.clone()).unwrap())
+                .collect(),
+        )
+    }
+}
+
+pub trait DestroyReplicaInfo {
+    fn node(&self) -> String;
+    fn pool(&self) -> String;
+    fn name(&self) -> Option<String>;
+    fn uuid(&self) -> String;
+    fn disowners(&self) -> ReplicaOwners;
+}
+
+impl DestroyReplicaInfo for DestroyReplica {
+    fn node(&self) -> String {
+        self.node.to_string()
+    }
+
+    fn pool(&self) -> String {
+        self.pool.to_string()
+    }
+
+    fn name(&self) -> Option<String> {
+        self.name.clone().map(|name| name.to_string())
+    }
+
+    fn uuid(&self) -> String {
+        self.uuid.to_string()
+    }
+
+    fn disowners(&self) -> ReplicaOwners {
+        self.disowners.clone()
+    }
+}
+
+impl DestroyReplicaInfo for DestroyReplicaRequest {
+    fn node(&self) -> String {
+        self.node_id.clone()
+    }
+
+    fn pool(&self) -> String {
+        self.pool_id.clone()
+    }
+
+    fn name(&self) -> Option<String> {
+        self.name.clone()
+    }
+
+    fn uuid(&self) -> String {
+        self.replica_id.clone().unwrap()
+    }
+
+    fn disowners(&self) -> ReplicaOwners {
+        ReplicaOwners::new(None, vec![])
+    }
+}
+
+pub trait ShareReplicaInfo {
+    fn node(&self) -> String;
+    fn pool(&self) -> String;
+    fn name(&self) -> Option<String>;
+    fn uuid(&self) -> String;
+    fn protocol(&self) -> String;
+}
+
+impl ShareReplicaInfo for ShareReplica {
+    fn node(&self) -> String {
+        self.node.to_string()
+    }
+
+    fn pool(&self) -> String {
+        self.pool.to_string()
+    }
+
+    fn name(&self) -> Option<String> {
+        self.name.clone().map(|name| name.to_string())
+    }
+
+    fn uuid(&self) -> String {
+        self.uuid.to_string()
+    }
+
+    fn protocol(&self) -> String {
+        self.protocol.to_string()
+    }
+}
+
+impl ShareReplicaInfo for ShareReplicaRequest {
+    fn node(&self) -> String {
+        self.node_id.clone()
+    }
+
+    fn pool(&self) -> String {
+        self.pool_id.clone()
+    }
+
+    fn name(&self) -> Option<String> {
+        self.name.clone()
+    }
+
+    fn uuid(&self) -> String {
+        self.replica_id.clone().unwrap()
+    }
+
+    fn protocol(&self) -> String {
+        let protocol: ReplicaShareProtocol = self.protocol.into();
+        protocol.to_string()
+    }
+}
+
+pub trait UnshareReplicaInfo {
+    fn node(&self) -> String;
+    fn pool(&self) -> String;
+    fn name(&self) -> Option<String>;
+    fn uuid(&self) -> String;
+}
+
+impl UnshareReplicaInfo for UnshareReplica {
+    fn node(&self) -> String {
+        self.node.to_string()
+    }
+
+    fn pool(&self) -> String {
+        self.pool.to_string()
+    }
+
+    fn name(&self) -> Option<String> {
+        self.name.clone().map(|name| name.to_string())
+    }
+
+    fn uuid(&self) -> String {
+        self.uuid.to_string()
+    }
+}
+
+impl UnshareReplicaInfo for UnshareReplicaRequest {
+    fn node(&self) -> String {
+        self.node_id.clone()
+    }
+
+    fn pool(&self) -> String {
+        self.pool_id.clone()
+    }
+
+    fn name(&self) -> Option<String> {
+        self.name.clone()
+    }
+
+    fn uuid(&self) -> String {
+        self.replica_id.clone().unwrap()
+    }
+}
+
+impl From<&(dyn CreateReplicaInfo + Send + Sync)> for CreateReplicaRequest {
+    fn from(data: &(dyn CreateReplicaInfo + Send + Sync)) -> Self {
+        Self {
+            node_id: data.node(),
+            pool_id: data.pool(),
+            name: data.name(),
+            replica_id: Some(data.uuid()),
+            thin: data.thin(),
+            size: data.size(),
+            share: Protocol::try_from(data.share()).unwrap().into(),
+            managed: data.managed(),
+            owners: Some(replica_grpc::ReplicaOwners {
+                volume: data.owners().volume().map(|id| id.to_string()),
+                nexuses: data
+                    .owners()
+                    .nexuses()
+                    .iter()
+                    .map(|id| id.to_string())
+                    .collect(),
+            }),
+        }
+    }
+}
+
+impl From<&(dyn DestroyReplicaInfo + Send + Sync)> for DestroyReplicaRequest {
+    fn from(data: &(dyn DestroyReplicaInfo + Send + Sync)) -> Self {
+        Self {
+            node_id: data.node(),
+            pool_id: data.pool(),
+            name: data.name(),
+            replica_id: Some(data.uuid()),
+            owners: Some(replica_grpc::ReplicaOwners {
+                volume: data.disowners().volume().map(|id| id.to_string()),
+                nexuses: data
+                    .disowners()
+                    .nexuses()
+                    .iter()
+                    .map(|id| id.to_string())
+                    .collect(),
+            }),
+        }
+    }
+}
+
+impl From<&(dyn ShareReplicaInfo + Send + Sync)> for ShareReplicaRequest {
+    fn from(data: &(dyn ShareReplicaInfo + Send + Sync)) -> Self {
+        Self {
+            node_id: data.node(),
+            pool_id: data.pool(),
+            name: data.name(),
+            replica_id: Some(data.uuid()),
+            protocol: ReplicaShareProtocol::try_from(data.protocol().as_str())
+                .unwrap()
+                .into(),
+        }
+    }
+}
+
+impl From<&(dyn UnshareReplicaInfo + Send + Sync)> for UnshareReplicaRequest {
+    fn from(data: &(dyn UnshareReplicaInfo + Send + Sync)) -> Self {
+        Self {
+            node_id: data.node(),
+            pool_id: data.pool(),
+            name: data.name(),
+            replica_id: Some(data.uuid()),
         }
     }
 }

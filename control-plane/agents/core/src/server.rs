@@ -75,6 +75,11 @@ pub(crate) struct CliArgs {
     /// Trace rest requests to the Jaeger endpoint agent
     #[structopt(long, short)]
     jaeger: Option<String>,
+    /// The GRPC Server URLs to connect to
+    /// (supports the http/https schema)
+    /// Default: 0.0.0.0:50051
+    #[structopt(long, short, default_value = "0.0.0.0:50051")]
+    pub(crate) grpc_addr: String,
 }
 impl CliArgs {
     fn args() -> Self {
@@ -160,6 +165,7 @@ async fn server(cli_args: CliArgs) {
         .connect_message_bus(cli_args.no_min_timeouts, BusClient::CoreAgent)
         .await
         .with_shared_state(registry.clone())
+        .with_shared_state(cli_args.grpc_addr.clone())
         .configure_async(node::configure)
         .await
         .configure_async(pool::configure)

@@ -1,8 +1,11 @@
-use crate::{pool_grpc, pool_grpc::get_pools_request};
+use crate::{
+    pool_grpc,
+    pool_grpc::{get_pools_request, CreatePoolRequest, DestroyPoolRequest},
+};
 use common_lib::{
     mbus_api::{v0::Pools, ReplyError},
     types::v0::{
-        message_bus::{Filter, Pool, PoolState, PoolStatus},
+        message_bus::{CreatePool, DestroyPool, Filter, Pool, PoolState, PoolStatus},
         store::pool::{PoolSpec, PoolSpecStatus},
     },
 };
@@ -12,14 +15,8 @@ use std::collections::HashMap;
 /// This trait can only be implemented on types which support the PoolInfo trait.
 #[tonic::async_trait]
 pub trait PoolOperations {
-    async fn create(
-        &self,
-        id: String,
-        node: String,
-        disks: Vec<String>,
-        labels: Option<HashMap<String, String>>,
-    ) -> Result<Pool, ReplyError>;
-    async fn destroy(&self, node_id: String, pool_id: String) -> Result<(), ReplyError>;
+    async fn create(&self, pool: &(dyn CreatePoolInfo + Sync + Send)) -> Result<Pool, ReplyError>;
+    async fn destroy(&self, pool: &(dyn DestroyPoolInfo + Sync + Send)) -> Result<(), ReplyError>;
     async fn get(&self, filter: Filter) -> Result<Pools, ReplyError>;
 }
 
@@ -163,7 +160,7 @@ impl From<ReplyError> for crate::common::ReplyError {
     fn from(err: ReplyError) -> Self {
         crate::common::ReplyError {
             kind: err.clone().kind.into(),
-            resource: err.clone().kind.into(),
+            resource: err.clone().resource.into(),
             source: err.clone().source,
             extra: err.extra,
         }
@@ -174,9 +171,110 @@ impl From<crate::common::ReplyError> for ReplyError {
     fn from(err: crate::common::ReplyError) -> Self {
         ReplyError {
             kind: err.clone().kind.into(),
-            resource: err.clone().kind.into(),
+            resource: err.clone().resource.into(),
             source: err.clone().source,
             extra: err.extra,
+        }
+    }
+}
+
+pub trait CreatePoolInfo {
+    fn pool_id(&self) -> String;
+    fn node_id(&self) -> String;
+    fn disks(&self) -> Option<Vec<String>>;
+    fn labels(&self) -> Option<HashMap<String, String>>;
+}
+
+pub trait DestroyPoolInfo {
+    fn pool_id(&self) -> String;
+    fn node_id(&self) -> String;
+}
+
+impl CreatePoolInfo for CreatePool {
+    fn pool_id(&self) -> String {
+        self.id.to_string()
+    }
+
+    fn node_id(&self) -> String {
+        self.node.to_string()
+    }
+
+    fn disks(&self) -> Option<Vec<String>> {
+        if self.disks.is_empty() {
+            None
+        } else {
+            Some(self.disks.iter().map(|disk| disk.clone().into()).collect())
+        }
+    }
+
+    fn labels(&self) -> Option<HashMap<String, String>> {
+        self.labels.clone()
+    }
+}
+
+impl CreatePoolInfo for CreatePoolRequest {
+    fn pool_id(&self) -> String {
+        self.pool_id.clone()
+    }
+
+    fn node_id(&self) -> String {
+        self.node_id.clone()
+    }
+
+    fn disks(&self) -> Option<Vec<String>> {
+        if self.disks.clone().is_empty() {
+            None
+        } else {
+            Some(self.disks.clone())
+        }
+    }
+
+    fn labels(&self) -> Option<HashMap<String, String>> {
+        match self.labels.clone() {
+            None => None,
+            Some(labels) => Some(labels.value),
+        }
+    }
+}
+
+impl From<&(dyn CreatePoolInfo + Send + Sync)> for CreatePoolRequest {
+    fn from(data: &(dyn CreatePoolInfo + Send + Sync)) -> Self {
+        Self {
+            pool_id: data.pool_id(),
+            node_id: data.node_id(),
+            disks: data.disks().unwrap(),
+            labels: data
+                .labels()
+                .map(|labels| crate::common::StringMapValue { value: labels }),
+        }
+    }
+}
+
+impl DestroyPoolInfo for DestroyPool {
+    fn pool_id(&self) -> String {
+        self.id.to_string()
+    }
+
+    fn node_id(&self) -> String {
+        self.node.to_string()
+    }
+}
+
+impl DestroyPoolInfo for DestroyPoolRequest {
+    fn pool_id(&self) -> String {
+        self.pool_id.clone()
+    }
+
+    fn node_id(&self) -> String {
+        self.node_id.clone()
+    }
+}
+
+impl From<&(dyn DestroyPoolInfo + Send + Sync)> for DestroyPoolRequest {
+    fn from(data: &(dyn DestroyPoolInfo + Send + Sync)) -> Self {
+        Self {
+            pool_id: data.pool_id(),
+            node_id: data.node_id(),
         }
     }
 }

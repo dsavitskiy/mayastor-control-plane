@@ -3,6 +3,7 @@ use crate::{
         NodeFilter, NodePoolFilter, NodePoolReplicaFilter, NodeReplicaFilter, PoolFilter,
         PoolReplicaFilter, ReplicaFilter, VolumeFilter,
     },
+    get_core_ip,
     replica::traits::ReplicaOperations,
     replica_grpc::{
         create_replica_reply, get_replicas_reply, get_replicas_request,
@@ -11,14 +12,13 @@ use crate::{
     },
 };
 
+use crate::replica::traits::{
+    CreateReplicaInfo, DestroyReplicaInfo, ShareReplicaInfo, UnshareReplicaInfo,
+};
 use common_lib::{
     mbus_api::{v0::Replicas, ReplyError},
-    types::v0::message_bus::{
-        CreateReplica, DestroyReplica, Filter, Replica, ShareReplica, UnshareReplica,
-    },
+    types::v0::message_bus::{Filter, Replica},
 };
-const GRPC_SERVER: &str = "10.1.0.4:50051";
-const HTTPS_SCHEME: &str = "https://";
 
 // RPC Replica Client
 pub struct ReplicaClient {
@@ -26,17 +26,22 @@ pub struct ReplicaClient {
 }
 
 impl ReplicaClient {
-    pub async fn init() -> impl ReplicaOperations {
-        let client = ReplicaGrpcClient::connect(HTTPS_SCHEME.to_owned() + GRPC_SERVER)
-            .await
-            .unwrap();
+    pub async fn init(addr: String) -> impl ReplicaOperations {
+        let a = match addr.is_empty() {
+            true => get_core_ip(),
+            false => addr,
+        };
+        let client = ReplicaGrpcClient::connect(a).await.unwrap();
         Self { client }
     }
 }
 
 #[tonic::async_trait]
 impl ReplicaOperations for ReplicaClient {
-    async fn create(&self, req: CreateReplica) -> Result<Replica, ReplyError> {
+    async fn create(
+        &self,
+        req: &(dyn CreateReplicaInfo + Sync + Send),
+    ) -> Result<Replica, ReplyError> {
         let req: CreateReplicaRequest = req.into();
         let response = self
             .client
@@ -119,7 +124,10 @@ impl ReplicaOperations for ReplicaClient {
         }
     }
 
-    async fn destroy(&self, req: DestroyReplica) -> Result<(), ReplyError> {
+    async fn destroy(
+        &self,
+        req: &(dyn DestroyReplicaInfo + Sync + Send),
+    ) -> Result<(), ReplyError> {
         let req: DestroyReplicaRequest = req.into();
         let response = self
             .client
@@ -134,7 +142,10 @@ impl ReplicaOperations for ReplicaClient {
         }
     }
 
-    async fn share(&self, req: ShareReplica) -> Result<String, ReplyError> {
+    async fn share(
+        &self,
+        req: &(dyn ShareReplicaInfo + Sync + Send),
+    ) -> Result<String, ReplyError> {
         let req: ShareReplicaRequest = req.into();
         let response = self
             .client
@@ -149,7 +160,10 @@ impl ReplicaOperations for ReplicaClient {
         }
     }
 
-    async fn unshare(&self, req: UnshareReplica) -> Result<(), ReplyError> {
+    async fn unshare(
+        &self,
+        req: &(dyn UnshareReplicaInfo + Sync + Send),
+    ) -> Result<(), ReplyError> {
         let req: UnshareReplicaRequest = req.into();
         let response = self
             .client
