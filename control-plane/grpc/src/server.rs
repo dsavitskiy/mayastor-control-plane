@@ -5,7 +5,7 @@ use crate::{
     replica_grpc::replica_grpc_server::ReplicaGrpcServer,
 };
 use std::sync::Arc;
-use tonic::transport::Server;
+use tonic::transport::{Server, Uri};
 
 // RPC Pool Server
 pub struct CoreServer {}
@@ -22,7 +22,7 @@ impl CoreServer {
     pub async fn init(
         pool_service: Arc<dyn PoolOperations + Send + Sync>,
         replica_service: Arc<dyn ReplicaOperations + Send + Sync>,
-        addr: String,
+        addr: Uri,
     ) {
         println!("Starting Core Server");
         tokio::spawn(async {
@@ -37,9 +37,9 @@ impl CoreServer {
         self,
         pool_service: Arc<dyn PoolOperations + Send + Sync>,
         replica_service: Arc<dyn ReplicaOperations + Send + Sync>,
-        addr: String,
+        addr: Uri,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let addr = addr.parse().unwrap();
+        let addr = addr.authority().unwrap().to_string().parse().unwrap();
         println!("{:?}", addr);
         Server::builder()
             .add_service(PoolGrpcServer::new(PoolServer::new(pool_service)))

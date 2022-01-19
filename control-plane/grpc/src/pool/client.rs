@@ -7,6 +7,8 @@ use crate::{
         CreatePoolRequest, DestroyPoolRequest, GetPoolsRequest,
     },
 };
+use std::time::Duration;
+use tonic::transport::Uri;
 
 use crate::pool::traits::{CreatePoolInfo, DestroyPoolInfo};
 use common_lib::{
@@ -20,12 +22,15 @@ pub struct PoolClient {
 }
 
 impl PoolClient {
-    pub async fn init(addr: String) -> impl PoolOperations {
-        let a = match addr.is_empty() {
-            true => get_core_ip(),
-            false => addr,
+    pub async fn init(addr: Option<Uri>) -> impl PoolOperations {
+        let a = match addr {
+            None => get_core_ip(),
+            Some(addr) => addr,
         };
-        let client = PoolGrpcClient::connect(a).await.unwrap();
+        let endpoint = tonic::transport::Endpoint::from(a)
+            .connect_timeout(Duration::from_millis(250))
+            .timeout(Duration::from_millis(250));
+        let client = PoolGrpcClient::connect(endpoint).await.unwrap();
         Self { client }
     }
 }

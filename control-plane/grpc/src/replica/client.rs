@@ -11,6 +11,8 @@ use crate::{
         DestroyReplicaRequest, GetReplicasRequest, ShareReplicaRequest, UnshareReplicaRequest,
     },
 };
+use std::time::Duration;
+use tonic::transport::Uri;
 
 use crate::replica::traits::{
     CreateReplicaInfo, DestroyReplicaInfo, ShareReplicaInfo, UnshareReplicaInfo,
@@ -26,12 +28,16 @@ pub struct ReplicaClient {
 }
 
 impl ReplicaClient {
-    pub async fn init(addr: String) -> impl ReplicaOperations {
-        let a = match addr.is_empty() {
-            true => get_core_ip(),
-            false => addr,
+    pub async fn init(addr: Option<Uri>) -> impl ReplicaOperations {
+        let a = match addr {
+            None => get_core_ip(),
+            Some(addr) => addr,
         };
-        let client = ReplicaGrpcClient::connect(a).await.unwrap();
+        let endpoint = tonic::transport::Endpoint::from(a)
+            .connect_timeout(Duration::from_millis(250))
+            .timeout(Duration::from_millis(250));
+
+        let client = ReplicaGrpcClient::connect(endpoint).await.unwrap();
         Self { client }
     }
 }

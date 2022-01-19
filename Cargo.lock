@@ -926,6 +926,7 @@ dependencies = [
  "composer",
  "deployer",
  "etcd-client",
+ "grpc",
  "openapi",
  "opentelemetry",
  "opentelemetry-jaeger",
@@ -1134,6 +1135,18 @@ checksum = "4ebda144c4fe02d1f7ea1a7d9641b6fc6b580adcfa024ae48797ecdeb6825b4d"
 dependencies = [
  "libc",
  "redox_users 0.4.0",
+ "winapi",
+]
+
+[[package]]
+name = "dns-lookup"
+version = "1.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53ecafc952c4528d9b51a458d1a8904b81783feff9fde08ab6ed2545ff396872"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "socket2",
  "winapi",
 ]
 
@@ -1500,6 +1513,7 @@ name = "grpc"
 version = "0.1.0"
 dependencies = [
  "common-lib",
+ "dns-lookup",
  "prost",
  "prost-build",
  "prost-types",

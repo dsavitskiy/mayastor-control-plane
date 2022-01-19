@@ -4,7 +4,7 @@ use grpc::pool::{client::PoolClient, traits::PoolOperations};
 use mbus_api::{message_bus::v0::BusError, ReplyErrorKind, ResourceKind};
 
 async fn destroy_pool(filter: Filter) -> Result<(), RestError<RestJsonError>> {
-    let client = PoolClient::init(String::new()).await;
+    let client = PoolClient::init(None).await;
     let destroy = match filter.clone() {
         Filter::NodePool(node_id, pool_id) => DestroyPool {
             node: node_id,
@@ -48,7 +48,7 @@ impl apis::actix_server::Pools for RestApi {
     async fn get_node_pool(
         Path((node_id, pool_id)): Path<(String, String)>,
     ) -> Result<models::Pool, RestError<RestJsonError>> {
-        let client = PoolClient::init(String::new()).await;
+        let client = PoolClient::init(None).await;
         let pool = client
             .get(Filter::NodePool(node_id.into(), pool_id.into()))
             .await?;
@@ -58,7 +58,7 @@ impl apis::actix_server::Pools for RestApi {
     async fn get_node_pools(
         Path(id): Path<String>,
     ) -> Result<Vec<models::Pool>, RestError<RestJsonError>> {
-        let client = PoolClient::init(String::new()).await;
+        let client = PoolClient::init(None).await;
         let pools = client.get(Filter::Node(id.into())).await?;
         Ok(pools.into_inner().into_iter().map(From::from).collect())
     }
@@ -66,13 +66,13 @@ impl apis::actix_server::Pools for RestApi {
     async fn get_pool(
         Path(pool_id): Path<String>,
     ) -> Result<models::Pool, RestError<RestJsonError>> {
-        let client = PoolClient::init(String::new()).await;
+        let client = PoolClient::init(None).await;
         let pool = client.get(Filter::Pool(pool_id.into())).await?;
         Ok(pool.into_inner()[0].clone().into())
     }
 
     async fn get_pools() -> Result<Vec<models::Pool>, RestError<RestJsonError>> {
-        let client = PoolClient::init(String::new()).await;
+        let client = PoolClient::init(None).await;
         let pools = client.get(Filter::None).await?;
         Ok(pools.into_inner().into_iter().map(From::from).collect())
     }
@@ -83,7 +83,7 @@ impl apis::actix_server::Pools for RestApi {
     ) -> Result<models::Pool, RestError<RestJsonError>> {
         let create =
             CreatePoolBody::from(create_pool_body).bus_request(node_id.into(), pool_id.into());
-        let client = PoolClient::init(String::new()).await;
+        let client = PoolClient::init(None).await;
         let pool = client.create(&create).await?;
         Ok(pool.into())
     }

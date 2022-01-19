@@ -12,19 +12,22 @@ use opentelemetry::{
     KeyValue,
 };
 
-use common_lib::{
-    mbus_api,
-    mbus_api::{Message, TimeoutOptions},
-    types::v0::message_bus,
-};
+use common_lib::{mbus_api, mbus_api::TimeoutOptions, types::v0::message_bus};
 use openapi::apis::Uuid;
 
-use common_lib::types::v0::store::{
-    definitions::ObjectKey,
-    registry::{ControlPlaneService, StoreLeaseLockKey},
+use common_lib::types::v0::{
+    message_bus::CreatePool,
+    store::{
+        definitions::ObjectKey,
+        registry::{ControlPlaneService, StoreLeaseLockKey},
+    },
 };
 pub use etcd_client;
 use etcd_client::DeleteOptions;
+use grpc::{
+    pool::{client::PoolClient, traits::PoolOperations},
+    replica::{client::ReplicaClient, traits::ReplicaOperations},
+};
 use rpc::mayastor::RpcHandle;
 use std::{collections::HashMap, convert::TryInto, net::SocketAddr, time::Duration};
 use structopt::StructOpt;
@@ -612,18 +615,20 @@ impl ClusterBuilder {
         }
 
         for pool in &self.pools() {
-            message_bus::CreatePool {
-                node: pool.node.clone().into(),
-                id: pool.id(),
-                disks: vec![pool.disk()],
-                labels: None,
-            }
-            .request()
-            .await
-            .unwrap();
+            let pool_client = PoolClient::init(None).await;
+            let replica_client = ReplicaClient::init(None).await;
+            pool_client
+                .create(&CreatePool {
+                    node: pool.node.clone().into(),
+                    id: pool.id(),
+                    disks: vec![pool.disk()],
+                    labels: None,
+                })
+                .await
+                .unwrap();
 
             for replica in &pool.replicas {
-                replica.request().await.unwrap();
+                replica_client.create(replica).await.unwrap();
             }
         }
 

@@ -8,6 +8,7 @@ pub mod watcher;
 use crate::core::registry;
 use common::Service;
 use common_lib::types::v0::message_bus::ChannelVs;
+use http::Uri;
 
 use common_lib::{mbus_api::BusClient, opentelemetry::default_tracing_tags};
 use opentelemetry::{global, sdk::propagation::TraceContextPropagator, KeyValue};
@@ -78,8 +79,8 @@ pub(crate) struct CliArgs {
     /// The GRPC Server URLs to connect to
     /// (supports the http/https schema)
     /// Default: 0.0.0.0:50051
-    #[structopt(long, short, default_value = "0.0.0.0:50051")]
-    pub(crate) grpc_addr: String,
+    #[structopt(long, short, default_value = "https://0.0.0.0:50051")]
+    pub(crate) grpc_addr: Uri,
 }
 impl CliArgs {
     fn args() -> Self {

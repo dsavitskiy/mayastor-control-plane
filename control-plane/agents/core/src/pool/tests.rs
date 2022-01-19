@@ -25,8 +25,6 @@ use itertools::Itertools;
 use std::{convert::TryFrom, time::Duration};
 use testlib::{Cluster, ClusterBuilder};
 
-const GRPC_ADDR: &str = "http://10.1.0.5:50051";
-
 #[tokio::test]
 async fn pool() {
     let cluster = ClusterBuilder::builder()
@@ -39,8 +37,8 @@ async fn pool() {
     let nodes = GetNodes::default().request().await.unwrap();
     tracing::info!("Nodes: {:?}", nodes);
 
-    let pool_client = PoolClient::init(GRPC_ADDR.to_string()).await;
-    let rep_client = ReplicaClient::init(GRPC_ADDR.to_string()).await;
+    let pool_client = PoolClient::init(None).await;
+    let rep_client = ReplicaClient::init(None).await;
 
     let pool = pool_client
         .create(&CreatePool {
@@ -174,7 +172,7 @@ async fn replica_spec(replica: &Replica) -> Option<ReplicaSpec> {
 
 /// Tests replica share and unshare operations as a transaction
 #[tokio::test]
-async fn replica_transaction() {
+async fn replica_transaction_asasasa() {
     let cluster = ClusterBuilder::builder()
         .with_rest(false)
         .with_pools(1)
@@ -186,8 +184,8 @@ async fn replica_transaction() {
         .unwrap();
     let mayastor = cluster.node(0);
 
-    let pool_client = PoolClient::init(GRPC_ADDR.to_string()).await;
-    let rep_client = ReplicaClient::init(GRPC_ADDR.to_string()).await;
+    let pool_client = PoolClient::init(None).await;
+    let rep_client = ReplicaClient::init(None).await;
 
     let nodes = GetNodes::default().request().await.unwrap();
     tracing::info!("Nodes: {:?}", nodes);
@@ -210,6 +208,7 @@ async fn replica_transaction() {
 
     async fn check_operation(replica: &Replica, protocol: Protocol) {
         // operation in progress
+        tracing::error!("HELLO");
         assert!(replica_spec(replica).await.unwrap().operation.is_some());
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
         // operation is completed
@@ -272,7 +271,7 @@ async fn replica_op_transaction_store(
     // pause mayastor
     cluster.composer().pause(mayastor.as_str()).await.unwrap();
 
-    let rep_client = ReplicaClient::init(GRPC_ADDR.to_string()).await;
+    let rep_client = ReplicaClient::init(None).await;
 
     if share.clone().is_some() {
         rep_client
@@ -331,7 +330,7 @@ async fn replica_op_transaction_store(
 /// Tests replica share and unshare operations when the store is temporarily down
 #[tokio::test]
 async fn replica_transaction_store() {
-    let rep_client = ReplicaClient::init(GRPC_ADDR.to_string()).await;
+    let rep_client = ReplicaClient::init(None).await;
     let store_timeout = Duration::from_millis(250);
     let reconcile_period = Duration::from_millis(250);
     let grpc_timeout = Duration::from_millis(350);

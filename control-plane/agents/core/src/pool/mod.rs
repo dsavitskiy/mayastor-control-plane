@@ -2,6 +2,7 @@ mod registry;
 pub mod service;
 pub mod specs;
 
+use http::Uri;
 use std::sync::Arc;
 
 use super::core::registry::Registry;
@@ -10,7 +11,7 @@ use common::{handler::*, Service};
 
 pub(crate) async fn configure(builder: Service) -> Service {
     let registry = builder.get_shared_state::<Registry>().clone();
-    let grpc_addr = builder.get_shared_state::<String>().clone();
+    let grpc_addr = builder.get_shared_state::<Uri>().clone();
     let new_service = service::Service::new(registry.clone());
     builder
         .with_channel(ChannelVs::Pool)

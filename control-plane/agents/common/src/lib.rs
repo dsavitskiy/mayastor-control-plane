@@ -14,6 +14,7 @@ use std::{
 use async_trait::async_trait;
 use dyn_clonable::clonable;
 use futures::{future::join_all, Future};
+use http::Uri;
 use snafu::{OptionExt, ResultExt, Snafu};
 use state::Container;
 use tracing::{debug, error};
@@ -306,7 +307,7 @@ impl Service {
         self,
         pool_service: Arc<T>,
         replica_service: Arc<P>,
-        addr: String,
+        addr: Uri,
     ) -> Self {
         grpc::server::CoreServer::init(pool_service, replica_service, addr).await;
         self
