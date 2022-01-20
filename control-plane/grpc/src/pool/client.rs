@@ -11,10 +11,10 @@ use crate::{
 use common_lib::{
     mbus_api::{v0::Pools, ReplyError, TimeoutOptions},
     types::v0::message_bus::{Filter, MessageIdVs, Pool},
-    DEFAULT_REQ_TIMEOUT,
 };
 use std::time::Duration;
 use tonic::transport::{Channel, Endpoint, Uri};
+use utils::DEFAULT_REQ_TIMEOUT;
 
 // RPC Pool Client
 pub struct PoolClient {

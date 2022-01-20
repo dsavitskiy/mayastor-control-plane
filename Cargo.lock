@@ -1521,6 +1521,7 @@ dependencies = [
  "tokio",
  "tonic",
  "tonic-build",
+ "utils",
 ]
 
 [[package]]

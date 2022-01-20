@@ -23,8 +23,8 @@ use crate::{
 use common_lib::{
     mbus_api::{v0::Replicas, ReplyError, TimeoutOptions},
     types::v0::message_bus::{Filter, MessageIdVs, Replica},
-    DEFAULT_REQ_TIMEOUT,
 };
+use utils::DEFAULT_REQ_TIMEOUT;
 
 // RPC Replica Client
 pub struct ReplicaClient {
