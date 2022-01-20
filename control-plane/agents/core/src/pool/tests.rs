@@ -51,9 +51,7 @@ async fn pool_new() {
                 disks: vec!["malloc:///disk0?size_mb=100".into()],
                 labels: None,
             },
-            Some(Context {
-                timeout: Some(Duration::from_millis(500)),
-            }),
+            None,
         )
         .await
         .unwrap();
@@ -207,7 +205,7 @@ async fn replica_spec(replica: &Replica) -> Option<ReplicaSpec> {
 #[tokio::test]
 async fn replica_transaction_asasasa() {
     let cluster = ClusterBuilder::builder()
-        .with_rest(false)
+        .with_rest(true)
         .with_pools(1)
         .with_agents(vec!["core"])
         .with_req_timeouts(Duration::from_millis(250), Duration::from_millis(500))
@@ -219,14 +217,16 @@ async fn replica_transaction_asasasa() {
 
     let pool_client = PoolClient::init(
         Some(Uri::try_from("https://10.1.0.5:50051").unwrap()),
-        Some(bus_timeout_opts()),
+        bus_timeout_opts(),
     )
     .await;
+    tracing::info!("REPLICA!");
     let rep_client = ReplicaClient::init(
         Some(Uri::try_from("https://10.1.0.5:50051").unwrap()),
-        Some(bus_timeout_opts()),
+        bus_timeout_opts(),
     )
     .await;
+    tracing::info!("REPLICAXXXXX!");
 
     let nodes = GetNodes::default().request().await.unwrap();
     tracing::info!("Nodes: {:?}", nodes);
@@ -252,7 +252,6 @@ async fn replica_transaction_asasasa() {
 
     async fn check_operation(replica: &Replica, protocol: Protocol) {
         // operation in progress
-        tracing::error!("HELLO");
         assert!(replica_spec(replica).await.unwrap().operation.is_some());
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
         // operation is completed
@@ -263,10 +262,15 @@ async fn replica_transaction_asasasa() {
     // pause mayastor
     cluster.composer().pause(mayastor.as_str()).await.unwrap();
 
+    tracing::error!("B");
     let _ = rep_client
-        .share(&ShareReplica::from(&replica), None)
+        .share(
+            &ShareReplica::from(&replica),
+            Some(Context::new(bus_timeout_opts())),
+        )
         .await
         .expect_err("mayastor down");
+    tracing::error!("A");
 
     check_operation(&replica, Protocol::None).await;
 
@@ -283,7 +287,10 @@ async fn replica_transaction_asasasa() {
     cluster.composer().pause(mayastor.as_str()).await.unwrap();
 
     let _ = rep_client
-        .unshare(&UnshareReplica::from(&replica), None)
+        .unshare(
+            &UnshareReplica::from(&replica),
+            Some(Context::new(bus_timeout_opts())),
+        )
         .await
         .expect_err("mayastor down");
 

@@ -7,7 +7,7 @@ use crate::{
         ShareReplicaRequest, UnshareReplicaReply, UnshareReplicaRequest,
     },
 };
-use common_lib::types::v0::message_bus::Filter;
+use common_lib::{mbus_api::ReplyError, types::v0::message_bus::Filter};
 use std::sync::Arc;
 use tonic::Response;
 
@@ -81,26 +81,51 @@ impl ReplicaGrpc for ReplicaServer {
         &self,
         request: tonic::Request<ShareReplicaRequest>,
     ) -> Result<tonic::Response<ShareReplicaReply>, tonic::Status> {
+        tracing::info!("SHARE");
         let req = request.into_inner();
-        match self.service.share(&req, None).await {
-            Ok(message) => Ok(Response::new(ShareReplicaReply {
-                reply: Some(share_replica_reply::Reply::Response(message)),
-            })),
-            Err(err) => Ok(Response::new(ShareReplicaReply {
-                reply: Some(share_replica_reply::Reply::Error(err.into())),
-            })),
-        }
+        let service = self.service.clone();
+        tokio::spawn(async move {
+            match service.share(&req, None).await {
+                Ok(message) => {
+                    tracing::info!("OK: {}", message);
+                    Ok(Response::new(ShareReplicaReply {
+                        reply: Some(share_replica_reply::Reply::Response(message)),
+                    }))
+                }
+                Err(err) => {
+                    tracing::info!("ERROR: {:?}", err);
+                    Ok(Response::new(ShareReplicaReply {
+                        reply: Some(share_replica_reply::Reply::Error(err.into())),
+                    }))
+                }
+            }
+        })
+        .await
+        .unwrap_or_else(|_| {
+            Ok(Response::new(ShareReplicaReply {
+                reply: Some(share_replica_reply::Reply::Error(ReplyError::fake().into())),
+            }))
+        })
     }
     async fn unshare_replica(
         &self,
         request: tonic::Request<UnshareReplicaRequest>,
     ) -> Result<tonic::Response<UnshareReplicaReply>, tonic::Status> {
         let req = request.into_inner();
-        match self.service.unshare(&req, None).await {
-            Ok(()) => Ok(Response::new(UnshareReplicaReply { error: None })),
-            Err(e) => Ok(Response::new(UnshareReplicaReply {
-                error: Some(e.into()),
-            })),
-        }
+        let service = self.service.clone();
+        tokio::spawn(async move {
+            match service.unshare(&req, None).await {
+                Ok(()) => Ok(Response::new(UnshareReplicaReply { error: None })),
+                Err(e) => Ok(Response::new(UnshareReplicaReply {
+                    error: Some(e.into()),
+                })),
+            }
+        })
+        .await
+        .unwrap_or_else(|_| {
+            Ok(Response::new(UnshareReplicaReply {
+                error: Some(ReplyError::fake().into()),
+            }))
+        })
     }
 }

@@ -34,7 +34,12 @@ pub struct ReplicaClient {
 }
 
 impl ReplicaClient {
-    pub async fn init(addr: Option<Uri>, opts: Option<TimeoutOptions>) -> impl ReplicaOperations {
+    pub async fn init<O: Into<Option<TimeoutOptions>>>(
+        addr: Option<Uri>,
+        opts: O,
+    ) -> impl ReplicaOperations {
+        let opts = opts.into();
+        println!("RRR {:?}", opts);
         let a = match addr {
             None => get_core_ip(),
             Some(addr) => addr,
@@ -43,11 +48,11 @@ impl ReplicaClient {
             .clone()
             .map(|opt| opt.base_timeout())
             .unwrap_or_else(|| humantime::parse_duration(DEFAULT_REQ_TIMEOUT).unwrap());
+        println!("RRR {:?}", timeout);
         let endpoint = tonic::transport::Endpoint::from(a)
-            .connect_timeout(Duration::from_millis(500))
+            .connect_timeout(timeout)
             .timeout(timeout);
-        ReplicaGrpcClient::connect(endpoint.clone()).await.unwrap();
-        println!("{:?}", opts);
+        //ReplicaGrpcClient::connect(endpoint.clone()).await.unwrap();
         Self {
             base_timeout: timeout,
             endpoint, //client,
@@ -58,22 +63,27 @@ impl ReplicaClient {
         ctx: Option<Context>,
         op_id: MessageIdVs,
     ) -> ReplicaGrpcClient<Channel> {
-        println!("RECONNECTING WITH {} ms", self.base_timeout.as_secs());
-        let ctx_timeout = ctx.map(|ctx| ctx.timeout).flatten();
+        let ctx_timeout = ctx.map(|ctx| ctx.timeout_opts).flatten();
+        tracing::info!("CTX: {:?}", ctx_timeout);
+
         match ctx_timeout {
             None => {
+                let timeout = timeout_grpc(op_id, self.base_timeout);
+                println!("NONE RECONNECTING WITH {} ms", timeout.as_millis());
                 let endpoint = self
                     .endpoint
                     .clone()
-                    .connect_timeout(Duration::from_millis(500))
-                    .timeout(timeout_grpc(op_id, self.base_timeout));
+                    .connect_timeout(timeout)
+                    .timeout(timeout);
                 ReplicaGrpcClient::connect(endpoint.clone()).await.unwrap()
             }
-            Some(timeout) => {
+            Some(timeout_opts) => {
+                let timeout = timeout_opts.base_timeout();
+                println!("RECONNECTING WITH {} ms", timeout.as_millis());
                 let endpoint = self
                     .endpoint
                     .clone()
-                    .connect_timeout(Duration::from_millis(500))
+                    .connect_timeout(timeout)
                     .timeout(timeout);
                 ReplicaGrpcClient::connect(endpoint.clone()).await.unwrap()
             }
@@ -191,12 +201,7 @@ impl ReplicaOperations for ReplicaClient {
     ) -> Result<String, ReplyError> {
         let client = self.reconnect(ctx, MessageIdVs::ShareReplica).await;
         let req: ShareReplicaRequest = req.into();
-        let response = client
-            .clone()
-            .share_replica(req)
-            .await
-            .unwrap()
-            .into_inner();
+        let response = client.clone().share_replica(req).await?.into_inner();
         match response.reply.unwrap() {
             share_replica_reply::Reply::Response(message) => Ok(message),
             share_replica_reply::Reply::Error(err) => Err(err.into()),
@@ -210,12 +215,7 @@ impl ReplicaOperations for ReplicaClient {
     ) -> Result<(), ReplyError> {
         let client = self.reconnect(ctx, MessageIdVs::UnshareReplica).await;
         let req: UnshareReplicaRequest = req.into();
-        let response = client
-            .clone()
-            .unshare_replica(req)
-            .await
-            .unwrap()
-            .into_inner();
+        let response = client.clone().unshare_replica(req).await?.into_inner();
         match response.error {
             None => Ok(()),
             Some(err) => Err(err.into()),

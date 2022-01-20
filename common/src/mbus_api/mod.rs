@@ -19,7 +19,9 @@ use crate::types::{
 };
 use async_trait::async_trait;
 use dyn_clonable::clonable;
-pub use mbus_nats::{bus, message_bus_init, message_bus_init_options, NatsMessageBus};
+pub use mbus_nats::{
+    bus, message_bus_init, message_bus_init_options, timeout_opts, NatsMessageBus,
+};
 use opentelemetry::propagation::{Extractor, Injector};
 pub use receive::*;
 pub use send::*;
@@ -30,6 +32,7 @@ use std::{
     time::Duration,
 };
 use strum_macros::{AsRefStr, ToString};
+use tonic::Status;
 
 /// Result wrapper for send/receive
 pub type BusResult<T> = Result<T, Error>;
@@ -380,6 +383,12 @@ pub struct ReplyError {
     pub extra: String,
 }
 
+impl From<tonic::Status> for ReplyError {
+    fn from(_: Status) -> Self {
+        Self::fake()
+    }
+}
+
 impl StdError for ReplyError {}
 impl ReplyError {
     /// extend error with source
@@ -388,6 +397,14 @@ impl ReplyError {
     pub fn extend(&mut self, source: &str, extra: &str) {
         self.source = format!("{}::{}", source, self.source);
         self.extra = format!("{}::{}", extra, self.extra);
+    }
+    pub fn fake() -> Self {
+        Self {
+            kind: ReplyErrorKind::Aborted,
+            resource: ResourceKind::Unknown,
+            source: "".to_string(),
+            extra: "".to_string(),
+        }
     }
 }
 

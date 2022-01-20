@@ -24,7 +24,11 @@ pub struct PoolClient {
 }
 
 impl PoolClient {
-    pub async fn init(addr: Option<Uri>, opts: Option<TimeoutOptions>) -> impl PoolOperations {
+    pub async fn init<O: Into<Option<TimeoutOptions>>>(
+        addr: Option<Uri>,
+        opts: O,
+    ) -> impl PoolOperations {
+        let opts = opts.into();
         let a = match addr {
             None => get_core_ip(),
             Some(addr) => addr,
@@ -34,10 +38,10 @@ impl PoolClient {
             .map(|opt| opt.base_timeout())
             .unwrap_or_else(|| humantime::parse_duration(DEFAULT_REQ_TIMEOUT).unwrap());
         let endpoint = tonic::transport::Endpoint::from(a)
-            .connect_timeout(Duration::from_millis(500))
+            .connect_timeout(timeout)
             .timeout(timeout);
-        PoolGrpcClient::connect(endpoint.clone()).await.unwrap();
         println!("{:?}", opts);
+        println!("Base: {:?}", timeout);
         Self {
             base_timeout: timeout,
             endpoint, //client,
@@ -49,21 +53,23 @@ impl PoolClient {
         op_id: MessageIdVs,
     ) -> PoolGrpcClient<Channel> {
         println!("RECONNECTING WITH {} ms", self.base_timeout.as_millis());
-        let ctx_timeout = ctx.map(|ctx| ctx.timeout).flatten();
+        let ctx_timeout = ctx.map(|ctx| ctx.timeout_opts).flatten();
         match ctx_timeout {
             None => {
+                let timeout = timeout_grpc(op_id, self.base_timeout);
                 let endpoint = self
                     .endpoint
                     .clone()
-                    .connect_timeout(Duration::from_millis(500))
-                    .timeout(timeout_grpc(op_id, self.base_timeout));
+                    .connect_timeout(timeout)
+                    .timeout(timeout);
                 PoolGrpcClient::connect(endpoint.clone()).await.unwrap()
             }
             Some(timeout) => {
+                let timeout = timeout.base_timeout();
                 let endpoint = self
                     .endpoint
                     .clone()
-                    .connect_timeout(Duration::from_millis(500))
+                    .connect_timeout(timeout)
                     .timeout(timeout);
                 PoolGrpcClient::connect(endpoint.clone()).await.unwrap()
             }

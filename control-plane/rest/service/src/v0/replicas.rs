@@ -1,5 +1,8 @@
 use super::*;
-use common_lib::{mbus_api::message_bus::v0::BusError, types::v0::openapi::apis::Uuid};
+use common_lib::{
+    mbus_api::{message_bus::v0::BusError, timeout_opts},
+    types::v0::openapi::apis::Uuid,
+};
 use grpc::{
     pool::{client::PoolClient, traits::PoolOperations},
     replica::{client::ReplicaClient, traits::ReplicaOperations},
@@ -10,7 +13,7 @@ async fn put_replica(
     filter: Filter,
     body: CreateReplicaBody,
 ) -> Result<models::Replica, RestError<RestJsonError>> {
-    let pool_client = PoolClient::init(None, None).await;
+    let pool_client = PoolClient::init(None, timeout_opts()).await;
     let create = match filter.clone() {
         Filter::NodePoolReplica(node_id, pool_id, replica_id) => {
             body.bus_request(node_id, pool_id, replica_id)
@@ -31,13 +34,13 @@ async fn put_replica(
             }))
         }
     };
-    let client = ReplicaClient::init(None, None).await;
+    let client = ReplicaClient::init(None, timeout_opts()).await;
     let replica = client.create(&create, None).await?;
     Ok(replica.into())
 }
 
 async fn destroy_replica(filter: Filter) -> Result<(), RestError<RestJsonError>> {
-    let client = ReplicaClient::init(None, None).await;
+    let client = ReplicaClient::init(None, timeout_opts()).await;
     let destroy = match filter.clone() {
         Filter::NodePoolReplica(node_id, pool_id, replica_id) => DestroyReplica {
             node: node_id,
@@ -77,7 +80,7 @@ async fn share_replica(
     filter: Filter,
     protocol: ReplicaShareProtocol,
 ) -> Result<String, RestError<RestJsonError>> {
-    let client = ReplicaClient::init(None, None).await;
+    let client = ReplicaClient::init(None, timeout_opts()).await;
     let share = match filter.clone() {
         Filter::NodePoolReplica(node_id, pool_id, replica_id) => ShareReplica {
             node: node_id,
@@ -114,7 +117,7 @@ async fn share_replica(
 }
 
 async fn unshare_replica(filter: Filter) -> Result<(), RestError<RestJsonError>> {
-    let client = ReplicaClient::init(None, None).await;
+    let client = ReplicaClient::init(None, timeout_opts()).await;
     let unshare = match filter.clone() {
         Filter::NodePoolReplica(node_id, pool_id, replica_id) => UnshareReplica {
             node: node_id,
@@ -188,7 +191,7 @@ impl apis::actix_server::Replicas for RestApi {
     async fn get_node_pool_replica(
         Path((node_id, pool_id, replica_id)): Path<(String, String, Uuid)>,
     ) -> Result<models::Replica, RestError<RestJsonError>> {
-        let client = ReplicaClient::init(None, None).await;
+        let client = ReplicaClient::init(None, timeout_opts()).await;
         let replicas = client
             .get(
                 Filter::NodePoolReplica(node_id.into(), pool_id.into(), replica_id.into()),
@@ -201,7 +204,7 @@ impl apis::actix_server::Replicas for RestApi {
     async fn get_node_pool_replicas(
         Path((node_id, pool_id)): Path<(String, String)>,
     ) -> Result<Vec<models::Replica>, RestError<RestJsonError>> {
-        let client = ReplicaClient::init(None, None).await;
+        let client = ReplicaClient::init(None, timeout_opts()).await;
         let replicas = client
             .get(Filter::NodePool(node_id.into(), pool_id.into()), None)
             .await?;
@@ -211,7 +214,7 @@ impl apis::actix_server::Replicas for RestApi {
     async fn get_node_replicas(
         Path(id): Path<String>,
     ) -> Result<Vec<models::Replica>, RestError<RestJsonError>> {
-        let client = ReplicaClient::init(None, None).await;
+        let client = ReplicaClient::init(None, timeout_opts()).await;
         let replicas = client.get(Filter::Node(id.into()), None).await?;
         Ok(replicas.into_inner().into_iter().map(From::from).collect())
     }
@@ -219,13 +222,13 @@ impl apis::actix_server::Replicas for RestApi {
     async fn get_replica(
         Path(id): Path<Uuid>,
     ) -> Result<models::Replica, RestError<RestJsonError>> {
-        let client = ReplicaClient::init(None, None).await;
+        let client = ReplicaClient::init(None, timeout_opts()).await;
         let replicas = client.get(Filter::Replica(id.into()), None).await?;
         Ok(replicas.into_inner()[0].clone().into())
     }
 
     async fn get_replicas() -> Result<Vec<models::Replica>, RestError<RestJsonError>> {
-        let client = ReplicaClient::init(None, None).await;
+        let client = ReplicaClient::init(None, timeout_opts()).await;
         let replicas = client.get(Filter::None, None).await?;
         Ok(replicas.into_inner().into_iter().map(From::from).collect())
     }

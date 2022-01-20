@@ -297,10 +297,14 @@ impl ResourceSpecsLocked {
         request: &ShareReplica,
         mode: OperationMode,
     ) -> Result<String, SvcError> {
+        tracing::info!("A");
         let node = registry.get_node_wrapper(&request.node).await?;
+        tracing::info!("B");
 
         if let Some(replica_spec) = self.get_replica(&request.uuid) {
+            tracing::info!("C");
             let status = registry.get_replica(&request.uuid).await?;
+            tracing::info!("D");
             let (spec_clone, _guard) = SpecOperations::start_update(
                 registry,
                 &replica_spec,
@@ -309,8 +313,10 @@ impl ResourceSpecsLocked {
                 mode,
             )
             .await?;
+            tracing::info!("E");
 
             let result = node.share_replica(request).await;
+            tracing::info!("H");
             SpecOperations::complete_update(registry, result, replica_spec, spec_clone).await
         } else {
             node.share_replica(request).await

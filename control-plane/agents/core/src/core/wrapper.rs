@@ -758,7 +758,9 @@ impl ClientOps for Arc<tokio::sync::RwLock<NodeWrapper>> {
 
     /// Share a replica on the pool via gRPC
     async fn share_replica(&self, request: &ShareReplica) -> Result<String, SvcError> {
+        tracing::info!("F");
         let mut ctx = self.grpc_client_locked(request.id()).await?;
+        tracing::info!("G");
         let share = ctx
             .mayastor
             .share_replica(request.to_rpc())
@@ -769,8 +771,11 @@ impl ClientOps for Arc<tokio::sync::RwLock<NodeWrapper>> {
             })?
             .into_inner()
             .uri;
+        tracing::info!("H");
         let mut ctx = ctx.reconnect(GETS_TIMEOUT).await?;
+        tracing::info!("I");
         self.update_replica_states(ctx.deref_mut()).await?;
+        tracing::info!("J");
         Ok(share)
     }
 

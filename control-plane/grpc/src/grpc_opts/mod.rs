@@ -1,4 +1,4 @@
-use common_lib::types::v0::message_bus::MessageIdVs;
+use common_lib::{mbus_api::TimeoutOptions, types::v0::message_bus::MessageIdVs};
 use std::time::Duration;
 
 /// Request specific minimum timeouts
@@ -48,5 +48,12 @@ pub fn timeout_grpc(op_id: MessageIdVs, min_timeout: Duration) -> Duration {
 }
 
 pub struct Context {
-    pub timeout: Option<Duration>,
+    pub timeout_opts: Option<TimeoutOptions>,
+}
+impl Context {
+    pub fn new(timeout_opts: impl Into<Option<TimeoutOptions>>) -> Self {
+        Self {
+            timeout_opts: timeout_opts.into(),
+        }
+    }
 }

@@ -46,6 +46,7 @@ impl CoreServer {
             .add_service(ReplicaGrpcServer::new(ReplicaServer::new(replica_service)))
             .serve(addr)
             .await?;
+        tracing::error!("Stopped");
         Ok(())
     }
 }
