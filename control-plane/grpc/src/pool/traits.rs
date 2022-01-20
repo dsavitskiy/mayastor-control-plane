@@ -1,4 +1,5 @@
 use crate::{
+    grpc_opts::Context,
     pool_grpc,
     pool_grpc::{get_pools_request, CreatePoolRequest, DestroyPoolRequest},
 };
@@ -15,9 +16,17 @@ use std::collections::HashMap;
 /// This trait can only be implemented on types which support the PoolInfo trait.
 #[tonic::async_trait]
 pub trait PoolOperations {
-    async fn create(&self, pool: &(dyn CreatePoolInfo + Sync + Send)) -> Result<Pool, ReplyError>;
-    async fn destroy(&self, pool: &(dyn DestroyPoolInfo + Sync + Send)) -> Result<(), ReplyError>;
-    async fn get(&self, filter: Filter) -> Result<Pools, ReplyError>;
+    async fn create(
+        &self,
+        pool: &(dyn CreatePoolInfo + Sync + Send),
+        ctx: Option<Context>,
+    ) -> Result<Pool, ReplyError>;
+    async fn destroy(
+        &self,
+        pool: &(dyn DestroyPoolInfo + Sync + Send),
+        ctx: Option<Context>,
+    ) -> Result<(), ReplyError>;
+    async fn get(&self, filter: Filter, ctx: Option<Context>) -> Result<Pools, ReplyError>;
 }
 
 impl From<pool_grpc::Pool> for Pool {

@@ -15,6 +15,7 @@ use common_lib::{
     },
 };
 use grpc::{
+    grpc_opts::Context,
     pool::traits::{CreatePoolInfo, DestroyPoolInfo, PoolOperations},
     replica::traits::{
         CreateReplicaInfo, DestroyReplicaInfo, ReplicaOperations, ShareReplicaInfo,
@@ -31,7 +32,11 @@ pub(super) struct Service {
 
 #[tonic::async_trait]
 impl PoolOperations for Service {
-    async fn create(&self, pool: &(dyn CreatePoolInfo + Sync + Send)) -> Result<Pool, ReplyError> {
+    async fn create(
+        &self,
+        pool: &(dyn CreatePoolInfo + Sync + Send),
+        _ctx: Option<Context>,
+    ) -> Result<Pool, ReplyError> {
         let req = CreatePool {
             node: pool.node_id().into(),
             id: pool.pool_id().into(),
@@ -42,7 +47,11 @@ impl PoolOperations for Service {
         Ok(pool)
     }
 
-    async fn destroy(&self, pool: &(dyn DestroyPoolInfo + Sync + Send)) -> Result<(), ReplyError> {
+    async fn destroy(
+        &self,
+        pool: &(dyn DestroyPoolInfo + Sync + Send),
+        _ctx: Option<Context>,
+    ) -> Result<(), ReplyError> {
         let req = DestroyPool {
             node: pool.node_id().into(),
             id: pool.pool_id().into(),
@@ -51,7 +60,7 @@ impl PoolOperations for Service {
         Ok(())
     }
 
-    async fn get(&self, filter: Filter) -> Result<Pools, ReplyError> {
+    async fn get(&self, filter: Filter, _ctx: Option<Context>) -> Result<Pools, ReplyError> {
         let req = GetPools { filter };
         let pools = self.get_pools(&req).await?;
         Ok(pools)
@@ -63,6 +72,7 @@ impl ReplicaOperations for Service {
     async fn create(
         &self,
         req: &(dyn CreateReplicaInfo + Sync + Send),
+        _ctx: Option<Context>,
     ) -> Result<Replica, ReplyError> {
         let create_replica = CreateReplica {
             node: req.node().into(),
@@ -89,7 +99,7 @@ impl ReplicaOperations for Service {
         Ok(replica)
     }
 
-    async fn get(&self, filter: Filter) -> Result<Replicas, ReplyError> {
+    async fn get(&self, filter: Filter, _ctx: Option<Context>) -> Result<Replicas, ReplyError> {
         let req = GetReplicas { filter };
         let replicas = self.get_replicas(&req).await?;
         Ok(replicas)
@@ -98,6 +108,7 @@ impl ReplicaOperations for Service {
     async fn destroy(
         &self,
         req: &(dyn DestroyReplicaInfo + Sync + Send),
+        _ctx: Option<Context>,
     ) -> Result<(), ReplyError> {
         let destroy_replica = DestroyReplica {
             node: req.node().into(),
@@ -123,6 +134,7 @@ impl ReplicaOperations for Service {
     async fn share(
         &self,
         req: &(dyn ShareReplicaInfo + Sync + Send),
+        _ctx: Option<Context>,
     ) -> Result<String, ReplyError> {
         let share_replica = ShareReplica {
             node: req.node().into(),
@@ -138,6 +150,7 @@ impl ReplicaOperations for Service {
     async fn unshare(
         &self,
         req: &(dyn UnshareReplicaInfo + Sync + Send),
+        _ctx: Option<Context>,
     ) -> Result<(), ReplyError> {
         let unshare_replica = UnshareReplica {
             node: req.node().into(),

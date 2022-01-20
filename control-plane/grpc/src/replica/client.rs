@@ -12,33 +12,72 @@ use crate::{
     },
 };
 use std::time::Duration;
-use tonic::transport::Uri;
+use tonic::transport::{Channel, Endpoint, Uri};
 
-use crate::replica::traits::{
-    CreateReplicaInfo, DestroyReplicaInfo, ShareReplicaInfo, UnshareReplicaInfo,
+use crate::{
+    grpc_opts::{timeout_grpc, Context},
+    replica::traits::{
+        CreateReplicaInfo, DestroyReplicaInfo, ShareReplicaInfo, UnshareReplicaInfo,
+    },
 };
 use common_lib::{
-    mbus_api::{v0::Replicas, ReplyError},
-    types::v0::message_bus::{Filter, Replica},
+    mbus_api::{v0::Replicas, ReplyError, TimeoutOptions},
+    types::v0::message_bus::{Filter, MessageIdVs, Replica},
+    DEFAULT_REQ_TIMEOUT,
 };
 
 // RPC Replica Client
 pub struct ReplicaClient {
-    client: ReplicaGrpcClient<tonic::transport::Channel>,
+    base_timeout: Duration,
+    endpoint: Endpoint,
+    //client: ReplicaGrpcClient<Channel>,
 }
 
 impl ReplicaClient {
-    pub async fn init(addr: Option<Uri>) -> impl ReplicaOperations {
+    pub async fn init(addr: Option<Uri>, opts: Option<TimeoutOptions>) -> impl ReplicaOperations {
         let a = match addr {
             None => get_core_ip(),
             Some(addr) => addr,
         };
+        let timeout = opts
+            .clone()
+            .map(|opt| opt.base_timeout())
+            .unwrap_or_else(|| humantime::parse_duration(DEFAULT_REQ_TIMEOUT).unwrap());
         let endpoint = tonic::transport::Endpoint::from(a)
-            .connect_timeout(Duration::from_millis(250))
-            .timeout(Duration::from_millis(250));
-
-        let client = ReplicaGrpcClient::connect(endpoint).await.unwrap();
-        Self { client }
+            .connect_timeout(Duration::from_millis(500))
+            .timeout(timeout);
+        ReplicaGrpcClient::connect(endpoint.clone()).await.unwrap();
+        println!("{:?}", opts);
+        Self {
+            base_timeout: timeout,
+            endpoint, //client,
+        }
+    }
+    pub async fn reconnect(
+        &self,
+        ctx: Option<Context>,
+        op_id: MessageIdVs,
+    ) -> ReplicaGrpcClient<Channel> {
+        println!("RECONNECTING WITH {} ms", self.base_timeout.as_secs());
+        let ctx_timeout = ctx.map(|ctx| ctx.timeout).flatten();
+        match ctx_timeout {
+            None => {
+                let endpoint = self
+                    .endpoint
+                    .clone()
+                    .connect_timeout(Duration::from_millis(500))
+                    .timeout(timeout_grpc(op_id, self.base_timeout));
+                ReplicaGrpcClient::connect(endpoint.clone()).await.unwrap()
+            }
+            Some(timeout) => {
+                let endpoint = self
+                    .endpoint
+                    .clone()
+                    .connect_timeout(Duration::from_millis(500))
+                    .timeout(timeout);
+                ReplicaGrpcClient::connect(endpoint.clone()).await.unwrap()
+            }
+        }
     }
 }
 
@@ -47,10 +86,11 @@ impl ReplicaOperations for ReplicaClient {
     async fn create(
         &self,
         req: &(dyn CreateReplicaInfo + Sync + Send),
+        ctx: Option<Context>,
     ) -> Result<Replica, ReplyError> {
+        let client = self.reconnect(ctx, MessageIdVs::CreateReplica).await;
         let req: CreateReplicaRequest = req.into();
-        let response = self
-            .client
+        let response = client
             .clone()
             .create_replica(req)
             .await
@@ -62,7 +102,8 @@ impl ReplicaOperations for ReplicaClient {
         }
     }
 
-    async fn get(&self, filter: Filter) -> Result<Replicas, ReplyError> {
+    async fn get(&self, filter: Filter, ctx: Option<Context>) -> Result<Replicas, ReplyError> {
+        let client = self.reconnect(ctx, MessageIdVs::GetReplicas).await;
         let req: GetReplicasRequest = match filter {
             Filter::Node(id) => GetReplicasRequest {
                 filter: Some(get_replicas_request::Filter::Node(NodeFilter {
@@ -117,13 +158,7 @@ impl ReplicaOperations for ReplicaClient {
             },
             _ => GetReplicasRequest { filter: None },
         };
-        let response = self
-            .client
-            .clone()
-            .get_replicas(req)
-            .await
-            .unwrap()
-            .into_inner();
+        let response = client.clone().get_replicas(req).await.unwrap().into_inner();
         match response.reply.unwrap() {
             get_replicas_reply::Reply::Replicas(replicas) => Ok(replicas.into()),
             get_replicas_reply::Reply::Error(err) => Err(err.into()),
@@ -133,10 +168,11 @@ impl ReplicaOperations for ReplicaClient {
     async fn destroy(
         &self,
         req: &(dyn DestroyReplicaInfo + Sync + Send),
+        ctx: Option<Context>,
     ) -> Result<(), ReplyError> {
+        let client = self.reconnect(ctx, MessageIdVs::DestroyReplica).await;
         let req: DestroyReplicaRequest = req.into();
-        let response = self
-            .client
+        let response = client
             .clone()
             .destroy_replica(req)
             .await
@@ -151,10 +187,11 @@ impl ReplicaOperations for ReplicaClient {
     async fn share(
         &self,
         req: &(dyn ShareReplicaInfo + Sync + Send),
+        ctx: Option<Context>,
     ) -> Result<String, ReplyError> {
+        let client = self.reconnect(ctx, MessageIdVs::ShareReplica).await;
         let req: ShareReplicaRequest = req.into();
-        let response = self
-            .client
+        let response = client
             .clone()
             .share_replica(req)
             .await
@@ -169,10 +206,11 @@ impl ReplicaOperations for ReplicaClient {
     async fn unshare(
         &self,
         req: &(dyn UnshareReplicaInfo + Sync + Send),
+        ctx: Option<Context>,
     ) -> Result<(), ReplyError> {
+        let client = self.reconnect(ctx, MessageIdVs::UnshareReplica).await;
         let req: UnshareReplicaRequest = req.into();
-        let response = self
-            .client
+        let response = client
             .clone()
             .unshare_replica(req)
             .await

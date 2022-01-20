@@ -623,6 +623,10 @@ impl TimeoutOptions {
     pub(crate) fn tcp_read_timeout(&self) -> Duration {
         self.tcp_read_timeout
     }
+    /// Get the base timeout
+    pub fn base_timeout(&self) -> Duration {
+        self.timeout
+    }
 }
 
 impl Default for TimeoutOptions {

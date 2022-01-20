@@ -1,37 +1,73 @@
 use crate::{
     common::{NodeFilter, NodePoolFilter, PoolFilter},
     get_core_ip,
-    pool::traits::PoolOperations,
+    grpc_opts::{timeout_grpc, Context},
+    pool::traits::{CreatePoolInfo, DestroyPoolInfo, PoolOperations},
     pool_grpc::{
         create_pool_reply, get_pools_reply, get_pools_request, pool_grpc_client::PoolGrpcClient,
         CreatePoolRequest, DestroyPoolRequest, GetPoolsRequest,
     },
 };
-use std::time::Duration;
-use tonic::transport::Uri;
-
-use crate::pool::traits::{CreatePoolInfo, DestroyPoolInfo};
 use common_lib::{
-    mbus_api::{v0::Pools, ReplyError},
-    types::v0::message_bus::{Filter, Pool},
+    mbus_api::{v0::Pools, ReplyError, TimeoutOptions},
+    types::v0::message_bus::{Filter, MessageIdVs, Pool},
+    DEFAULT_REQ_TIMEOUT,
 };
+use std::time::Duration;
+use tonic::transport::{Channel, Endpoint, Uri};
 
 // RPC Pool Client
 pub struct PoolClient {
-    client: PoolGrpcClient<tonic::transport::Channel>,
+    base_timeout: Duration,
+    endpoint: Endpoint,
+    //client: PoolGrpcClient<Channel>,
 }
 
 impl PoolClient {
-    pub async fn init(addr: Option<Uri>) -> impl PoolOperations {
+    pub async fn init(addr: Option<Uri>, opts: Option<TimeoutOptions>) -> impl PoolOperations {
         let a = match addr {
             None => get_core_ip(),
             Some(addr) => addr,
         };
+        let timeout = opts
+            .clone()
+            .map(|opt| opt.base_timeout())
+            .unwrap_or_else(|| humantime::parse_duration(DEFAULT_REQ_TIMEOUT).unwrap());
         let endpoint = tonic::transport::Endpoint::from(a)
-            .connect_timeout(Duration::from_millis(250))
-            .timeout(Duration::from_millis(250));
-        let client = PoolGrpcClient::connect(endpoint).await.unwrap();
-        Self { client }
+            .connect_timeout(Duration::from_millis(500))
+            .timeout(timeout);
+        PoolGrpcClient::connect(endpoint.clone()).await.unwrap();
+        println!("{:?}", opts);
+        Self {
+            base_timeout: timeout,
+            endpoint, //client,
+        }
+    }
+    pub async fn reconnect(
+        &self,
+        ctx: Option<Context>,
+        op_id: MessageIdVs,
+    ) -> PoolGrpcClient<Channel> {
+        println!("RECONNECTING WITH {} ms", self.base_timeout.as_millis());
+        let ctx_timeout = ctx.map(|ctx| ctx.timeout).flatten();
+        match ctx_timeout {
+            None => {
+                let endpoint = self
+                    .endpoint
+                    .clone()
+                    .connect_timeout(Duration::from_millis(500))
+                    .timeout(timeout_grpc(op_id, self.base_timeout));
+                PoolGrpcClient::connect(endpoint.clone()).await.unwrap()
+            }
+            Some(timeout) => {
+                let endpoint = self
+                    .endpoint
+                    .clone()
+                    .connect_timeout(Duration::from_millis(500))
+                    .timeout(timeout);
+                PoolGrpcClient::connect(endpoint.clone()).await.unwrap()
+            }
+        }
     }
 }
 
@@ -42,15 +78,11 @@ impl PoolOperations for PoolClient {
     async fn create(
         &self,
         create_pool_req: &(dyn CreatePoolInfo + Sync + Send),
+        ctx: Option<Context>,
     ) -> Result<Pool, ReplyError> {
+        let client = self.reconnect(ctx, MessageIdVs::CreatePool).await;
         let req: CreatePoolRequest = create_pool_req.into();
-        let response = self
-            .client
-            .clone()
-            .create_pool(req)
-            .await
-            .unwrap()
-            .into_inner();
+        let response = client.clone().create_pool(req).await.unwrap().into_inner();
         match response.reply.unwrap() {
             create_pool_reply::Reply::Pool(pool) => Ok(pool.into()),
             create_pool_reply::Reply::Error(err) => Err(err.into()),
@@ -61,22 +93,19 @@ impl PoolOperations for PoolClient {
     async fn destroy(
         &self,
         destroy_pool_req: &(dyn DestroyPoolInfo + Sync + Send),
+        ctx: Option<Context>,
     ) -> Result<(), ReplyError> {
+        let client = self.reconnect(ctx, MessageIdVs::DestroyPool).await;
         let req: DestroyPoolRequest = destroy_pool_req.into();
-        let response = self
-            .client
-            .clone()
-            .destroy_pool(req)
-            .await
-            .unwrap()
-            .into_inner();
+        let response = client.clone().destroy_pool(req).await.unwrap().into_inner();
         match response.error {
             None => Ok(()),
             Some(err) => Err(err.into()),
         }
     }
 
-    async fn get(&self, filter: Filter) -> Result<Pools, ReplyError> {
+    async fn get(&self, filter: Filter, ctx: Option<Context>) -> Result<Pools, ReplyError> {
+        let client = self.reconnect(ctx, MessageIdVs::GetPools).await;
         let req: GetPoolsRequest = match filter {
             Filter::Node(id) => GetPoolsRequest {
                 filter: Some(get_pools_request::Filter::Node(NodeFilter {
@@ -96,13 +125,7 @@ impl PoolOperations for PoolClient {
             },
             _ => GetPoolsRequest { filter: None },
         };
-        let response = self
-            .client
-            .clone()
-            .get_pools(req)
-            .await
-            .unwrap()
-            .into_inner();
+        let response = client.clone().get_pools(req).await.unwrap().into_inner();
         match response.reply.unwrap() {
             get_pools_reply::Reply::Pools(pools) => Ok(pools.into()),
             get_pools_reply::Reply::Error(err) => Err(err.into()),

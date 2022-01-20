@@ -1,4 +1,5 @@
 use crate::{
+    grpc_opts::Context,
     replica_grpc,
     replica_grpc::{
         get_replicas_request, CreateReplicaRequest, DestroyReplicaRequest, ShareReplicaRequest,
@@ -19,14 +20,24 @@ pub trait ReplicaOperations {
     async fn create(
         &self,
         req: &(dyn CreateReplicaInfo + Sync + Send),
+        ctx: Option<Context>,
     ) -> Result<Replica, ReplyError>;
-    async fn get(&self, filter: Filter) -> Result<Replicas, ReplyError>;
-    async fn destroy(&self, req: &(dyn DestroyReplicaInfo + Sync + Send))
-        -> Result<(), ReplyError>;
-    async fn share(&self, req: &(dyn ShareReplicaInfo + Sync + Send))
-        -> Result<String, ReplyError>;
-    async fn unshare(&self, req: &(dyn UnshareReplicaInfo + Sync + Send))
-        -> Result<(), ReplyError>;
+    async fn get(&self, filter: Filter, ctx: Option<Context>) -> Result<Replicas, ReplyError>;
+    async fn destroy(
+        &self,
+        req: &(dyn DestroyReplicaInfo + Sync + Send),
+        ctx: Option<Context>,
+    ) -> Result<(), ReplyError>;
+    async fn share(
+        &self,
+        req: &(dyn ShareReplicaInfo + Sync + Send),
+        ctx: Option<Context>,
+    ) -> Result<String, ReplyError>;
+    async fn unshare(
+        &self,
+        req: &(dyn UnshareReplicaInfo + Sync + Send),
+        ctx: Option<Context>,
+    ) -> Result<(), ReplyError>;
 }
 
 impl From<Replica> for replica_grpc::Replica {

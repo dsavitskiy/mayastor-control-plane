@@ -1,12 +1,14 @@
-use std::{convert::TryFrom, env};
+use std::convert::TryFrom;
 
+pub mod grpc_opts;
 pub mod pool;
 pub mod replica;
 pub mod server;
-use dns_lookup::lookup_host;
+
+// use dns_lookup::lookup_host;
 use tonic::transport::Uri;
 
-const CORE_HOSTNAME: &str = "core";
+//const CORE_HOSTNAME: &str = "core";
 
 // Common module for all the misc operations
 // TODO: move this to its respective directory structure
@@ -25,9 +27,10 @@ pub(crate) mod replica_grpc {
 }
 
 pub fn get_core_ip() -> Uri {
-    let addr = match lookup_host(CORE_HOSTNAME) {
-        Ok(ipv4addr) => ipv4addr[0].to_string(),
-        Err(_) => env::var("CORE_IP").expect("CORE_IP not found"),
-    };
-    Uri::try_from(format!("https://{}:50051", addr)).unwrap()
+    // let addr = match lookup_host(CORE_HOSTNAME) {
+    //     Ok(ipv4addr) => ipv4addr[0].to_string(),
+    //     Err(_) => env::var("CORE_IP").expect("CORE_IP not found"),
+    // };
+    //Uri::try_from(format!("https://{}:50051", addr)).unwrap()
+    Uri::try_from("https://10.1.0.5:50051").unwrap()
 }

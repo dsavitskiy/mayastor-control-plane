@@ -615,20 +615,23 @@ impl ClusterBuilder {
         }
 
         for pool in &self.pools() {
-            let pool_client = PoolClient::init(None).await;
-            let replica_client = ReplicaClient::init(None).await;
+            let pool_client = PoolClient::init(None, None).await;
+            let replica_client = ReplicaClient::init(None, None).await;
             pool_client
-                .create(&CreatePool {
-                    node: pool.node.clone().into(),
-                    id: pool.id(),
-                    disks: vec![pool.disk()],
-                    labels: None,
-                })
+                .create(
+                    &CreatePool {
+                        node: pool.node.clone().into(),
+                        id: pool.id(),
+                        disks: vec![pool.disk()],
+                        labels: None,
+                    },
+                    None,
+                )
                 .await
                 .unwrap();
 
             for replica in &pool.replicas {
-                replica_client.create(replica).await.unwrap();
+                replica_client.create(replica, None).await.unwrap();
             }
         }
 
